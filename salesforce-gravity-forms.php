@@ -1,15 +1,15 @@
 <?php
 /**
- * Plugin Name: Salesforce Gravity Forms
- * Plugin URI:  https://github.com/Boardorg/salesforce-gravity-forms
- * Description: Populates Gravity Forms Checkbox fields with sponsor companies queried directly from Salesforce.
- * Version:     0.1.0
- * Requires PHP: 8.2
+ * Plugin Name:       Salesforce Gravity Forms
+ * Plugin URI:        https://github.com/Boardorg/salesforce-gravity-forms
+ * Description:       Populates Gravity Forms Checkbox fields with sponsor companies queried directly from Salesforce.
+ * Version:           0.1.0
+ * Requires PHP:      8.2
  * Requires at least: 6.5
- * Author:      Peter Wiley
- * License:     GPL-2.0-or-later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: salesforce-gravity-forms
+ * Author:            Peter Wiley
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       salesforce-gravity-forms
  *
  * @package SalesforceGravityForms
  */

@@ -17,6 +17,7 @@ namespace SalesforceGravityForms\Admin\CredentialsSettings;
 
 // Set our aliases.
 use SalesforceGravityForms\Config;
+use SalesforceGravityForms\Salesforce\Authentication;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -24,6 +25,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // Settings API group and page slug shared by every field registered below.
 const SETTINGS_GROUP = 'sfgf_credentials';
 const PAGE_SLUG      = 'sfgf-credentials';
+
+// Nonce action/name for the "Test Connection" button, kept separate from
+// the Settings API's own nonce (settings_fields()) since it posts back to
+// this page directly instead of to options.php.
+const TEST_CONNECTION_ACTION = 'sfgf_test_connection';
+const TEST_CONNECTION_NONCE  = 'sfgf_test_connection_nonce';
 
 // Start our engines.
 add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
@@ -140,6 +147,12 @@ function render_settings_page() {
 		return;
 	}
 
+	// Handle a "Test Connection" submission before rendering, so its result
+	// shows up in the same settings_errors() output as a credentials save.
+	if ( isset( $_POST['sfgf_test_connection'] ) && check_admin_referer( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE ) ) {
+		handle_test_connection();
+	}
+
 	// Add error/update messages.
 	settings_errors( SETTINGS_GROUP );
 	?>
@@ -158,8 +171,56 @@ function render_settings_page() {
 			submit_button( __( 'Save Credentials', 'salesforce-gravity-forms' ) );
 			?>
 		</form>
+
+		<form method="post">
+			<?php
+			// Separate nonce/form so this never accidentally re-saves the
+			// credentials fields above -- it only exercises authenticate().
+			wp_nonce_field( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE );
+			?>
+			<input type="hidden" name="sfgf_test_connection" value="1">
+			<?php submit_button( __( 'Test Connection', 'salesforce-gravity-forms' ), 'secondary' ); ?>
+		</form>
 	</div>
 	<?php
+}
+
+/**
+ * Attempts a Salesforce authentication and records the result as a
+ * settings-error notice (success or failure) for settings_errors() to
+ * display. Only exercises the OAuth handshake, not a SOQL query -- there's
+ * no configured event code yet to query against (that's a per-Gravity
+ * Forms-form setting from a later phase).
+ *
+ * @return void
+ */
+function handle_test_connection() {
+	$result = Authentication\authenticate();
+
+	if ( is_wp_error( $result ) ) {
+		add_settings_error(
+			SETTINGS_GROUP,
+			'sfgf_test_connection',
+			sprintf(
+				/* translators: %s: sanitized error message, never contains the client secret. */
+				__( 'Connection failed: %s', 'salesforce-gravity-forms' ),
+				$result->get_error_message()
+			),
+			'error'
+		);
+		return;
+	}
+
+	add_settings_error(
+		SETTINGS_GROUP,
+		'sfgf_test_connection',
+		sprintf(
+			/* translators: %s: the Salesforce instance URL that authenticated successfully. */
+			__( 'Connected successfully. Instance URL: %s', 'salesforce-gravity-forms' ),
+			$result['instance_url']
+		),
+		'success'
+	);
 }
 
 /**
