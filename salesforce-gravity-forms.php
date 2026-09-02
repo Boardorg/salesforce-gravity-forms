@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: BoardMC Salesforce Gravity Forms
- * Plugin URI:  https://github.com/Boardorg/boardmc-salesforce-gravity-forms
+ * Plugin Name: Salesforce Gravity Forms
+ * Plugin URI:  https://github.com/Boardorg/salesforce-gravity-forms
  * Description: Populates Gravity Forms Checkbox fields with sponsor companies queried directly from Salesforce.
  * Version:     0.1.0
  * Requires PHP: 8.2
@@ -9,13 +9,13 @@
  * Author:      Peter Wiley
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: boardmc-salesforce-gravity-forms
+ * Text Domain: salesforce-gravity-forms
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms;
+namespace SalesforceGravityForms;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -36,7 +36,7 @@ define( __NAMESPACE__ . '\URL', plugin_dir_url( __FILE__ ) );
 define( __NAMESPACE__ . '\INCLUDES_PATH', __DIR__ . '/includes' );
 
 // Slug used to register with Gravity Forms logging and as a cache-key prefix.
-define( __NAMESPACE__ . '\SLUG', 'boardmc-salesforce-gravity-forms' );
+define( __NAMESPACE__ . '\SLUG', 'salesforce-gravity-forms' );
 
 // Minimum PHP version this plugin supports. Kept separate from the "Requires
 // PHP" header so the runtime guard below can produce a friendly notice
@@ -51,35 +51,35 @@ define( __NAMESPACE__ . '\MIN_GRAVITY_FORMS_VERSION', '2.7' );
 // Defer file loading until plugins_loaded so Gravity Forms (an activation
 // dependency) has had a chance to load its own classes first. Priority 20
 // runs after Gravity Forms' own default plugins_loaded registration.
-add_action( 'plugins_loaded', __NAMESPACE__ . '\boardmc_sfgf_bootstrap', 20 );
+add_action( 'plugins_loaded', __NAMESPACE__ . '\sfgf_bootstrap', 20 );
 
 /**
  * Checks runtime dependencies and, if satisfied, loads the plugin's files.
  *
  * @return void
  */
-function boardmc_sfgf_bootstrap() {
+function sfgf_bootstrap() {
 
 	// Guard: refuse to run on an unsupported PHP version rather than risk a
 	// fatal parse/runtime error further down the require chain.
 	if ( version_compare( PHP_VERSION, MIN_PHP_VERSION, '<' ) ) {
-		add_action( 'admin_notices', __NAMESPACE__ . '\boardmc_sfgf_php_version_notice' );
+		add_action( 'admin_notices', __NAMESPACE__ . '\sfgf_php_version_notice' );
 		return;
 	}
 
 	// Guard: this plugin only has meaning alongside Gravity Forms.
 	if ( ! class_exists( 'GFForms' ) ) {
-		add_action( 'admin_notices', __NAMESPACE__ . '\boardmc_sfgf_missing_gravityforms_notice' );
+		add_action( 'admin_notices', __NAMESPACE__ . '\sfgf_missing_gravityforms_notice' );
 		return;
 	}
 
 	// Guard: warn (but do not hard-block) on an unverified Gravity Forms version.
 	if ( version_compare( \GFForms::$version, MIN_GRAVITY_FORMS_VERSION, '<' ) ) {
-		add_action( 'admin_notices', __NAMESPACE__ . '\boardmc_sfgf_old_gravityforms_notice' );
+		add_action( 'admin_notices', __NAMESPACE__ . '\sfgf_old_gravityforms_notice' );
 	}
 
 	// Dependencies satisfied; load the plugin's files.
-	boardmc_sfgf_file_load();
+	sfgf_file_load();
 }
 
 /**
@@ -88,7 +88,7 @@ function boardmc_sfgf_bootstrap() {
  *
  * @return void
  */
-function boardmc_sfgf_file_load() {
+function sfgf_file_load() {
 
 	// Configuration readers for the server-side Salesforce credentials.
 	require_once INCLUDES_PATH . '/config/config.php';
@@ -129,7 +129,7 @@ function boardmc_sfgf_file_load() {
  *
  * @return void
  */
-function boardmc_sfgf_php_version_notice() {
+function sfgf_php_version_notice() {
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(
@@ -137,7 +137,7 @@ function boardmc_sfgf_php_version_notice() {
 		esc_html(
 			sprintf(
 				/* translators: 1: required PHP version, 2: current PHP version. */
-				__( 'BoardMC Salesforce Gravity Forms requires PHP %1$s or higher. This server is running PHP %2$s.', 'boardmc-salesforce-gravity-forms' ),
+				__( 'Salesforce Gravity Forms requires PHP %1$s or higher. This server is running PHP %2$s.', 'salesforce-gravity-forms' ),
 				MIN_PHP_VERSION,
 				PHP_VERSION
 			)
@@ -150,12 +150,12 @@ function boardmc_sfgf_php_version_notice() {
  *
  * @return void
  */
-function boardmc_sfgf_missing_gravityforms_notice() {
+function sfgf_missing_gravityforms_notice() {
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(
 		'<div class="notice notice-error"><p>%s</p></div>',
-		esc_html__( 'BoardMC Salesforce Gravity Forms requires Gravity Forms to be installed and active.', 'boardmc-salesforce-gravity-forms' )
+		esc_html__( 'Salesforce Gravity Forms requires Gravity Forms to be installed and active.', 'salesforce-gravity-forms' )
 	);
 }
 
@@ -165,7 +165,7 @@ function boardmc_sfgf_missing_gravityforms_notice() {
  *
  * @return void
  */
-function boardmc_sfgf_old_gravityforms_notice() {
+function sfgf_old_gravityforms_notice() {
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(
@@ -173,7 +173,7 @@ function boardmc_sfgf_old_gravityforms_notice() {
 		esc_html(
 			sprintf(
 				/* translators: %s: minimum verified Gravity Forms version. */
-				__( 'BoardMC Salesforce Gravity Forms has only been verified against Gravity Forms %s and newer. Some features may not work as expected.', 'boardmc-salesforce-gravity-forms' ),
+				__( 'Salesforce Gravity Forms has only been verified against Gravity Forms %s and newer. Some features may not work as expected.', 'salesforce-gravity-forms' ),
 				MIN_GRAVITY_FORMS_VERSION
 			)
 		)

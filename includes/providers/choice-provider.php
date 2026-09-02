@@ -12,15 +12,15 @@
  * "Choice caching and failure behavior" section, since that policy applies
  * to any provider, not just the Salesforce one.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Providers\ChoiceProvider;
+namespace SalesforceGravityForms\Providers\ChoiceProvider;
 
-use BoardMC\SalesforceGravityForms\Providers\SalesforceSponsorProvider;
-use BoardMC\SalesforceGravityForms\Cache\ChoiceCache;
-use BoardMC\SalesforceGravityForms\Helpers\Utilities;
+use SalesforceGravityForms\Providers\SalesforceSponsorProvider;
+use SalesforceGravityForms\Cache\ChoiceCache;
+use SalesforceGravityForms\Helpers\Utilities;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -45,14 +45,14 @@ function get_choices( $source, $event_code ) {
 		return $fresh;
 	}
 
-	$providers = apply_filters( 'boardmc_sfgf_choice_providers', [ 'sponsors' => __NAMESPACE__ . '\\dispatch_sponsors' ] );
+	$providers = apply_filters( 'sfgf_choice_providers', [ 'sponsors' => __NAMESPACE__ . '\\dispatch_sponsors' ] );
 
 	if ( ! isset( $providers[ $source ] ) || ! is_callable( $providers[ $source ] ) ) {
 		return new \WP_Error(
-			'boardmc_sfgf_unknown_choice_source',
+			'sfgf_unknown_choice_source',
 			sprintf(
 				/* translators: %s: the unrecognized choice-source key. */
-				__( 'No choice provider is registered for source "%s".', 'boardmc-salesforce-gravity-forms' ),
+				__( 'No choice provider is registered for source "%s".', 'salesforce-gravity-forms' ),
 				$source
 			)
 		);
@@ -69,7 +69,7 @@ function get_choices( $source, $event_code ) {
 
 		$stale = ChoiceCache\get_stale( $source, $event_code );
 		if ( null !== $stale ) {
-			return apply_filters( 'boardmc_sfgf_choices', $stale, $source, $event_code );
+			return apply_filters( 'sfgf_choices', $stale, $source, $event_code );
 		}
 
 		// No stale list to fall back to — surface the controlled error
@@ -81,7 +81,7 @@ function get_choices( $source, $event_code ) {
 	// Only ever updated after a successful query, per the handoff doc.
 	ChoiceCache\set_stale( $source, $event_code, $choices );
 
-	return apply_filters( 'boardmc_sfgf_choices', $choices, $source, $event_code );
+	return apply_filters( 'sfgf_choices', $choices, $source, $event_code );
 }
 
 /**

@@ -7,17 +7,17 @@
  * whole lifetime — this cache has to be an explicit, persistent store.
  * Transients (backed by VIP's persistent object cache) fill that role.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Cache\TokenCache;
+namespace SalesforceGravityForms\Cache\TokenCache;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Transient key the cached token bundle is stored under.
-const TRANSIENT_KEY = 'boardmc_sfgf_sf_token';
+const TRANSIENT_KEY = 'sfgf_sf_token';
 
 // How long a fetched token is trusted before authenticate() fetches a fresh
 // one. Intentionally shorter than the existing app's ~30 minute cache to

@@ -4,13 +4,13 @@
  * "fresh" layer that drives normal rendering, and a longer-lived "stale"
  * layer that is only ever read when a live Salesforce query fails.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Cache\ChoiceCache;
+namespace SalesforceGravityForms\Cache\ChoiceCache;
 
-use BoardMC\SalesforceGravityForms\Config;
+use SalesforceGravityForms\Config;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -35,7 +35,7 @@ function build_key( $layer, $source, $event_code ) {
 	// (production vs. sandbox) the cached choices came from.
 	$environment = (string) Config\get_login_url();
 
-	return 'boardmc_sfgf_choices_' . $layer . '_' . md5( $environment . '|' . $source . '|' . $event_code );
+	return 'sfgf_choices_' . $layer . '_' . md5( $environment . '|' . $source . '|' . $event_code );
 }
 
 /**

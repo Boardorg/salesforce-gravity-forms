@@ -8,14 +8,14 @@
  * (Delegate__r.AccountId), and the `label` is the Account name
  * (Delegate__r.Account.Name) — never the Attendee__c row or the Contact.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Providers\SalesforceSponsorProvider;
+namespace SalesforceGravityForms\Providers\SalesforceSponsorProvider;
 
-use BoardMC\SalesforceGravityForms\Salesforce\SponsorRecords;
-use BoardMC\SalesforceGravityForms\Helpers\Utilities;
+use SalesforceGravityForms\Salesforce\SponsorRecords;
+use SalesforceGravityForms\Helpers\Utilities;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;

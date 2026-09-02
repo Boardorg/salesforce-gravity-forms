@@ -9,21 +9,21 @@
  * the handoff doc's original "never store these in wp_options" guidance,
  * and what that trade-off costs.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Admin\CredentialsSettings;
+namespace SalesforceGravityForms\Admin\CredentialsSettings;
 
 // Set our aliases.
-use BoardMC\SalesforceGravityForms\Config;
+use SalesforceGravityForms\Config;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Settings API group and page slug shared by every field registered below.
-const SETTINGS_GROUP = 'boardmc_sfgf_credentials';
-const PAGE_SLUG      = 'boardmc-sfgf-credentials';
+const SETTINGS_GROUP = 'sfgf_credentials';
+const PAGE_SLUG      = 'sfgf-credentials';
 
 // Start our engines.
 add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
@@ -39,8 +39,8 @@ function add_settings_page() {
 	// Add submenu page under Settings.
 	add_submenu_page(
 		'options-general.php',
-		__( 'BoardMC Salesforce Gravity Forms', 'boardmc-salesforce-gravity-forms' ),
-		__( 'BoardMC Salesforce', 'boardmc-salesforce-gravity-forms' ),
+		__( 'Salesforce Gravity Forms', 'salesforce-gravity-forms' ),
+		__( 'Salesforce', 'salesforce-gravity-forms' ),
 		'manage_options',
 		PAGE_SLUG,
 		__NAMESPACE__ . '\render_settings_page'
@@ -115,17 +115,17 @@ function register_settings() {
 
 	// Add the (only, for now) settings section.
 	add_settings_section(
-		'boardmc_sfgf_credentials_main',
-		__( 'Salesforce Connection', 'boardmc-salesforce-gravity-forms' ),
+		'sfgf_credentials_main',
+		__( 'Salesforce Connection', 'salesforce-gravity-forms' ),
 		__NAMESPACE__ . '\render_main_section_description',
 		PAGE_SLUG
 	);
 
 	// Add each field to that section.
-	add_settings_field( Config\OPTION_LOGIN_URL, __( 'Salesforce Login URL', 'boardmc-salesforce-gravity-forms' ), __NAMESPACE__ . '\render_login_url_field', PAGE_SLUG, 'boardmc_sfgf_credentials_main' );
-	add_settings_field( Config\OPTION_CLIENT_ID, __( 'Client ID', 'boardmc-salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_id_field', PAGE_SLUG, 'boardmc_sfgf_credentials_main' );
-	add_settings_field( Config\OPTION_CLIENT_SECRET, __( 'Client Secret', 'boardmc-salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_secret_field', PAGE_SLUG, 'boardmc_sfgf_credentials_main' );
-	add_settings_field( Config\OPTION_API_VERSION, __( 'API Version', 'boardmc-salesforce-gravity-forms' ), __NAMESPACE__ . '\render_api_version_field', PAGE_SLUG, 'boardmc_sfgf_credentials_main' );
+	add_settings_field( Config\OPTION_LOGIN_URL, __( 'Salesforce Login URL', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_login_url_field', PAGE_SLUG, 'sfgf_credentials_main' );
+	add_settings_field( Config\OPTION_CLIENT_ID, __( 'Client ID', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_id_field', PAGE_SLUG, 'sfgf_credentials_main' );
+	add_settings_field( Config\OPTION_CLIENT_SECRET, __( 'Client Secret', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_secret_field', PAGE_SLUG, 'sfgf_credentials_main' );
+	add_settings_field( Config\OPTION_API_VERSION, __( 'API Version', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_api_version_field', PAGE_SLUG, 'sfgf_credentials_main' );
 }
 
 /**
@@ -155,7 +155,7 @@ function render_settings_page() {
 			do_settings_sections( PAGE_SLUG );
 
 			// Output save settings button.
-			submit_button( __( 'Save Credentials', 'boardmc-salesforce-gravity-forms' ) );
+			submit_button( __( 'Save Credentials', 'salesforce-gravity-forms' ) );
 			?>
 		</form>
 	</div>
@@ -168,8 +168,8 @@ function render_settings_page() {
  * @return void
  */
 function render_main_section_description() {
-	echo '<p>' . esc_html__( 'Credentials for a dedicated, least-privilege Salesforce integration user. Do not reuse a human user’s login or another Salesforce-connected app’s credentials.', 'boardmc-salesforce-gravity-forms' ) . '</p>';
-	echo '<p>' . esc_html__( 'Stored in wp_options. If a matching wp-config.php constant or environment variable is defined instead, it always takes precedence and these fields are ignored.', 'boardmc-salesforce-gravity-forms' ) . '</p>';
+	echo '<p>' . esc_html__( 'Credentials for a dedicated, least-privilege Salesforce integration user. Do not reuse a human user’s login or another Salesforce-connected app’s credentials.', 'salesforce-gravity-forms' ) . '</p>';
+	echo '<p>' . esc_html__( 'Stored in wp_options. If a matching wp-config.php constant or environment variable is defined instead, it always takes precedence and these fields are ignored.', 'salesforce-gravity-forms' ) . '</p>';
 }
 
 /**
@@ -238,8 +238,8 @@ function render_client_secret_field() {
 	<p class="description">
 		<?php
 		echo $has_secret
-			? esc_html__( 'A client secret is already saved. Leave blank to keep it unchanged.', 'boardmc-salesforce-gravity-forms' )
-			: esc_html__( 'No client secret saved yet.', 'boardmc-salesforce-gravity-forms' );
+			? esc_html__( 'A client secret is already saved. Leave blank to keep it unchanged.', 'salesforce-gravity-forms' )
+			: esc_html__( 'No client secret saved yet.', 'salesforce-gravity-forms' );
 		?>
 	</p>
 	<?php

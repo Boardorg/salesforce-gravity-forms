@@ -7,22 +7,22 @@
  * no JWT/RSA involvement. This module knows how to obtain a token; it knows
  * nothing about SOQL or Gravity Forms.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Salesforce\Authentication;
+namespace SalesforceGravityForms\Salesforce\Authentication;
 
-use BoardMC\SalesforceGravityForms\Config;
-use BoardMC\SalesforceGravityForms\Cache\TokenCache;
-use BoardMC\SalesforceGravityForms\Helpers\Utilities;
+use SalesforceGravityForms\Config;
+use SalesforceGravityForms\Cache\TokenCache;
+use SalesforceGravityForms\Helpers\Utilities;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Lock key guarding concurrent token fetches so simultaneous page requests
 // don't all miss the cache and hit the token endpoint at once.
-const AUTH_LOCK_KEY = 'boardmc_sfgf_auth_lock';
+const AUTH_LOCK_KEY = 'sfgf_auth_lock';
 
 // Finite timeouts so a slow/unreachable Salesforce endpoint cannot hang a
 // WordPress request indefinitely.
@@ -127,8 +127,8 @@ function fetch_token() {
 			]
 		);
 		return new \WP_Error(
-			'boardmc_sfgf_auth_failed',
-			__( 'Unable to authenticate with Salesforce.', 'boardmc-salesforce-gravity-forms' )
+			'sfgf_auth_failed',
+			__( 'Unable to authenticate with Salesforce.', 'salesforce-gravity-forms' )
 		);
 	}
 

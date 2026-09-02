@@ -2,14 +2,14 @@
 /**
  * Retrieves raw sponsor rows from Salesforce.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Salesforce\SponsorRecords;
+namespace SalesforceGravityForms\Salesforce\SponsorRecords;
 
-use BoardMC\SalesforceGravityForms\Salesforce\Client;
-use BoardMC\SalesforceGravityForms\Salesforce\QueryBuilders;
+use SalesforceGravityForms\Salesforce\Client;
+use SalesforceGravityForms\Salesforce\QueryBuilders;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;

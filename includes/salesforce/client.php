@@ -7,15 +7,15 @@
  * a flat array of records or a structured WP_Error — never a raw HTTP
  * response.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Salesforce\Client;
+namespace SalesforceGravityForms\Salesforce\Client;
 
-use BoardMC\SalesforceGravityForms\Config;
-use BoardMC\SalesforceGravityForms\Salesforce\Authentication;
-use BoardMC\SalesforceGravityForms\Helpers\Utilities;
+use SalesforceGravityForms\Config;
+use SalesforceGravityForms\Salesforce\Authentication;
+use SalesforceGravityForms\Helpers\Utilities;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -47,7 +47,7 @@ function query( $soql ) {
 
 	// If — and only if — the token went stale between caching and use,
 	// drop it and retry the whole query exactly once with a fresh token.
-	if ( is_wp_error( $result ) && 'boardmc_sfgf_invalid_session' === $result->get_error_code() ) {
+	if ( is_wp_error( $result ) && 'sfgf_invalid_session' === $result->get_error_code() ) {
 		Authentication\invalidate();
 
 		$auth = Authentication\authenticate();
@@ -60,10 +60,10 @@ function query( $soql ) {
 		// A second invalid-session response means something is wrong beyond
 		// a simple expired token; surface a controlled error instead of
 		// retrying again.
-		if ( is_wp_error( $result ) && 'boardmc_sfgf_invalid_session' === $result->get_error_code() ) {
+		if ( is_wp_error( $result ) && 'sfgf_invalid_session' === $result->get_error_code() ) {
 			return new \WP_Error(
-				'boardmc_sfgf_query_failed',
-				__( 'Salesforce rejected the request even after re-authenticating.', 'boardmc-salesforce-gravity-forms' )
+				'sfgf_query_failed',
+				__( 'Salesforce rejected the request even after re-authenticating.', 'salesforce-gravity-forms' )
 			);
 		}
 	}
@@ -136,7 +136,7 @@ function fetch_page( $auth, $path ) {
 	// Salesforce reports an expired/invalid session as a 401 with an
 	// errorCode of INVALID_SESSION_ID in the (array of one) JSON body.
 	if ( 401 === $status_code && is_array( $body ) && isset( $body[0]['errorCode'] ) && 'INVALID_SESSION_ID' === $body[0]['errorCode'] ) {
-		return new \WP_Error( 'boardmc_sfgf_invalid_session', __( 'Salesforce session is no longer valid.', 'boardmc-salesforce-gravity-forms' ) );
+		return new \WP_Error( 'sfgf_invalid_session', __( 'Salesforce session is no longer valid.', 'salesforce-gravity-forms' ) );
 	}
 
 	if ( 200 !== $status_code || ! is_array( $body ) || ! isset( $body['records'] ) ) {
@@ -151,8 +151,8 @@ function fetch_page( $auth, $path ) {
 			]
 		);
 		return new \WP_Error(
-			'boardmc_sfgf_query_failed',
-			__( 'Salesforce query failed.', 'boardmc-salesforce-gravity-forms' )
+			'sfgf_query_failed',
+			__( 'Salesforce query failed.', 'salesforce-gravity-forms' )
 		);
 	}
 

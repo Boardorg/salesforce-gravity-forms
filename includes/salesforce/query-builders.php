@@ -9,11 +9,11 @@
  * to this file, and if it changes, change it only here so the rest of the
  * plugin never has to know why a given row is or isn't a sponsor.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Salesforce\QueryBuilders;
+namespace SalesforceGravityForms\Salesforce\QueryBuilders;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -138,8 +138,8 @@ function sponsor_where( $safe_event_code ) {
 function build_sponsor_query( $event_code ) {
 	if ( ! is_valid_event_code( $event_code ) ) {
 		return new \WP_Error(
-			'boardmc_sfgf_invalid_event_code',
-			__( 'The configured Salesforce event code contains unexpected characters.', 'boardmc-salesforce-gravity-forms' )
+			'sfgf_invalid_event_code',
+			__( 'The configured Salesforce event code contains unexpected characters.', 'salesforce-gravity-forms' )
 		);
 	}
 

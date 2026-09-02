@@ -2,21 +2,21 @@
 /**
  * Shared logging and cache-locking helpers.
  *
- * @package BoardMCSalesforceGravityForms
+ * @package SalesforceGravityForms
  */
 
 // Declare our namespace.
-namespace BoardMC\SalesforceGravityForms\Helpers\Utilities;
+namespace SalesforceGravityForms\Helpers\Utilities;
 
 // Alias the root namespace for shared plugin-level constants.
-use BoardMC\SalesforceGravityForms as Core;
+use SalesforceGravityForms as Core;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Cache group used for the short stampede-prevention locks. A dedicated
 // group keeps these keys out of any other plugin's default-group traffic.
-const LOCK_CACHE_GROUP = 'boardmc_sfgf_locks';
+const LOCK_CACHE_GROUP = 'sfgf_locks';
 
 /**
  * Adds this plugin to the list of plugins Gravity Forms' logging screen can
@@ -26,7 +26,7 @@ const LOCK_CACHE_GROUP = 'boardmc_sfgf_locks';
  * @return array The filtered list, with this plugin added.
  */
 function register_logging_support( $plugins ) {
-	$plugins[ Core\SLUG ] = 'BoardMC Salesforce Gravity Forms';
+	$plugins[ Core\SLUG ] = 'Salesforce Gravity Forms';
 	return $plugins;
 }
 

@@ -1,4 +1,4 @@
-# BoardMC Salesforce Gravity Forms
+# Salesforce Gravity Forms
 
 Populates one or more Gravity Forms Checkbox fields with the sponsor
 companies for the event assigned to that form, queried directly from
@@ -20,7 +20,7 @@ neither environment variables nor deploy-time control over `wp-config.php`
 (the only access available there is SFTP and phpMyAdmin) — so, as an
 explicit decision and a deliberate departure from the more common "never
 store these in `wp_options`" guidance, credentials are entered through
-**Settings → BoardMC Salesforce** in wp-admin and stored, unencrypted, in
+**Settings → Salesforce** in wp-admin and stored, unencrypted, in
 `wp_options`.
 
 That trade-off was made knowingly: it's a wider blast radius than a
@@ -30,24 +30,12 @@ the only channels this environment actually provides. The client secret
 field is write-only — it's never redisplayed once saved, only "configured"
 or "not configured" — and the option is stored non-autoloaded.
 
-A `wp-config.php` constant or environment variable of the matching name, if
-defined, always takes precedence over the wp_admin-entered value — so a
-VIP-hosted or local environment (like this plugin's dev sandbox) can still
-configure it the original way instead:
-
-| Constant | Purpose |
-|---|---|
-| `BOARDMC_SFGF_SALESFORCE_LOGIN_URL` | Salesforce login/base URL. Environment-specific — point a local/staging site at a sandbox. |
-| `BOARDMC_SFGF_SALESFORCE_CLIENT_ID` | Client ID for a dedicated Salesforce External Client App / Connected App. Use a least-privilege integration user — do not reuse a human user's credentials or the existing app's Connected App. |
-| `BOARDMC_SFGF_SALESFORCE_CLIENT_SECRET` | Client secret for the same app. |
-| `BOARDMC_SFGF_SALESFORCE_API_VERSION` | Optional. Salesforce REST API version. Defaults to `59.0`, matching the existing app. |
-
 ## Architecture
 
 ```text
 includes/
-├── config/config.php               Reads the constants above (or their wp_options fallback); fails loudly (WP_Error) if incomplete.
-├── admin/credentials-settings.php  wp-admin screen for the wp_options fallback (Settings → BoardMC Salesforce).
+├── config/config.php               Reads the Salesforce credentials (wp-config.php constant, env var, or the wp_options fallback below); fails loudly (WP_Error) if incomplete.
+├── admin/credentials-settings.php  wp-admin screen for the wp_options fallback (Settings → Salesforce).
 ├── helpers/utilities.php           Gravity Forms–aware logging (falls back to error_log) + cache-lock helpers.
 ├── cache/
 │   ├── token-cache.php             Persists the Salesforce access token across requests (transients).
