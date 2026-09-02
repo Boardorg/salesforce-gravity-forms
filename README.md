@@ -19,9 +19,6 @@ form/field settings screen, no stable checkbox-input registry, and no admin
 diagnostics screen. See `OPEN_QUESTIONS.md` for what's still unresolved
 before that work (or production use) can start.
 
-What exists today is fully unit-tested without any live Salesforce
-credentials or a running WordPress install (see "Running the tests" below).
-
 ## Configuration
 
 Set these as `wp-config.php` constants (preferred) or environment variables.
@@ -57,14 +54,3 @@ includes/
 The Gravity Forms layer (phases 4–5, not built yet) is meant to only ever
 call `ChoiceProvider\get_choices( 'sponsors', $event_code )` — it should
 never need to know Salesforce is involved.
-
-## Running the tests
-
-```sh
-composer install
-composer test
-```
-
-Tests use [WP_Mock](https://github.com/10up/wp_mock) to mock WordPress core
-functions (`wp_remote_get`/`wp_remote_post`, transients, the object cache) —
-no WordPress install or live Salesforce credentials required.
