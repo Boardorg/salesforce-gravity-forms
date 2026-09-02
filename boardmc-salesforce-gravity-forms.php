@@ -112,6 +112,13 @@ function boardmc_sfgf_file_load() {
 	require_once INCLUDES_PATH . '/providers/choice-provider.php';
 	require_once INCLUDES_PATH . '/providers/salesforce-sponsor-provider.php';
 
+	// Admin-only credentials settings screen -- only needed on hosts (e.g.
+	// WP Engine's standard managed plans) that provide neither environment
+	// variables nor deploy-time control over wp-config.php.
+	if ( is_admin() ) {
+		require_once INCLUDES_PATH . '/admin/credentials-settings.php';
+	}
+
 	// Register this plugin with Gravity Forms' logging system now that
 	// GFLogging is guaranteed to be loaded.
 	add_filter( 'gform_logging_supported', __NAMESPACE__ . '\Helpers\Utilities\register_logging_support' );

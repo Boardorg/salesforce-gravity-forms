@@ -2,10 +2,19 @@
 /**
  * Reads the server-side Salesforce configuration.
  *
- * Credentials are intentionally never stored in wp_options, Gravity Forms
- * metadata, or an admin-editable form field. They must be defined as
- * environment variables or wp-config.php constants, matching the handoff
- * doc's "Configuration design" section.
+ * A defined PHP constant (typically set in wp-config.php) or an environment
+ * variable of the same name always takes precedence, for environments that
+ * support them (e.g. this plugin's local VIP Go development sandbox).
+ *
+ * Production runs on WP Engine's standard managed WordPress plans, which
+ * offer neither environment variables nor deploy-time control over
+ * wp-config.php. The only channels available there are SFTP and phpMyAdmin,
+ * so — as an explicit, documented decision, not the handoff doc's original
+ * "constants only" design — these values fall back to wp_options, entered
+ * through the settings screen in includes/admin/credentials-settings.php.
+ * That trades the doc's original defense (a compromised database alone
+ * can't reveal the secret) for what SFTP/phpMyAdmin-only access actually
+ * allows; see the README's "Configuration" section for the full tradeoff.
  *
  * @package BoardMCSalesforceGravityForms
  */
@@ -19,23 +28,38 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // Default Salesforce REST API version, matching the existing app's default.
 const DEFAULT_API_VERSION = '59.0';
 
+// wp_options fallback keys, read only when neither a constant nor an
+// environment variable of the corresponding name is defined.
+const OPTION_LOGIN_URL     = 'boardmc_sfgf_salesforce_login_url';
+const OPTION_CLIENT_ID     = 'boardmc_sfgf_salesforce_client_id';
+const OPTION_CLIENT_SECRET = 'boardmc_sfgf_salesforce_client_secret';
+const OPTION_API_VERSION   = 'boardmc_sfgf_salesforce_api_version';
+
 /**
  * Reads a single configuration value, preferring a defined PHP constant
- * (typically set in wp-config.php) and falling back to an environment
- * variable of the same name.
+ * (typically set in wp-config.php), falling back to an environment
+ * variable of the same name, and finally to a wp_options row for hosts that
+ * offer neither.
  *
- * @param string $name Constant/environment-variable name to read.
- * @return string|null The value, or null if neither source defines it.
+ * @param string $constant_name Constant/environment-variable name to read.
+ * @param string $option_name   wp_options key to fall back to.
+ * @return string|null The value, or null if none of the three sources define it.
  */
-function read_value( $name ) {
+function read_value( $constant_name, $option_name ) {
 	// A defined constant takes precedence over the environment.
-	if ( defined( $name ) ) {
-		return (string) constant( $name );
+	if ( defined( $constant_name ) ) {
+		return (string) constant( $constant_name );
 	}
 
-	// Fall back to the environment (e.g. a VIP environment variable).
-	$env_value = getenv( $name );
-	return false === $env_value ? null : $env_value;
+	// Next, the environment (e.g. a VIP environment variable).
+	$env_value = getenv( $constant_name );
+	if ( false !== $env_value ) {
+		return $env_value;
+	}
+
+	// Last resort: wp_options, for a host that provides neither of the above.
+	$option_value = get_option( $option_name, '' );
+	return '' === $option_value ? null : $option_value;
 }
 
 /**
@@ -44,7 +68,7 @@ function read_value( $name ) {
  * @return string|null
  */
 function get_login_url() {
-	return read_value( 'BOARDMC_SFGF_SALESFORCE_LOGIN_URL' );
+	return read_value( 'BOARDMC_SFGF_SALESFORCE_LOGIN_URL', OPTION_LOGIN_URL );
 }
 
 /**
@@ -53,7 +77,7 @@ function get_login_url() {
  * @return string|null
  */
 function get_client_id() {
-	return read_value( 'BOARDMC_SFGF_SALESFORCE_CLIENT_ID' );
+	return read_value( 'BOARDMC_SFGF_SALESFORCE_CLIENT_ID', OPTION_CLIENT_ID );
 }
 
 /**
@@ -62,7 +86,7 @@ function get_client_id() {
  * @return string|null
  */
 function get_client_secret() {
-	return read_value( 'BOARDMC_SFGF_SALESFORCE_CLIENT_SECRET' );
+	return read_value( 'BOARDMC_SFGF_SALESFORCE_CLIENT_SECRET', OPTION_CLIENT_SECRET );
 }
 
 /**
@@ -72,7 +96,7 @@ function get_client_secret() {
  * @return string
  */
 function get_api_version() {
-	$configured = read_value( 'BOARDMC_SFGF_SALESFORCE_API_VERSION' );
+	$configured = read_value( 'BOARDMC_SFGF_SALESFORCE_API_VERSION', OPTION_API_VERSION );
 	// An explicit but empty value should still fall through to the default.
 	return $configured ? $configured : DEFAULT_API_VERSION;
 }
@@ -98,16 +122,16 @@ function get_credentials() {
 	// Collect every missing setting so the resulting error is actionable in
 	// one read instead of requiring several failed attempts.
 	$missing = [];
-	if ( ! $login_url ) $missing[] = 'BOARDMC_SFGF_SALESFORCE_LOGIN_URL';
-	if ( ! $client_id ) $missing[] = 'BOARDMC_SFGF_SALESFORCE_CLIENT_ID';
-	if ( ! $client_secret ) $missing[] = 'BOARDMC_SFGF_SALESFORCE_CLIENT_SECRET';
+	if ( ! $login_url ) $missing[] = __( 'Salesforce Login URL', 'boardmc-salesforce-gravity-forms' );
+	if ( ! $client_id ) $missing[] = __( 'Client ID', 'boardmc-salesforce-gravity-forms' );
+	if ( ! $client_secret ) $missing[] = __( 'Client Secret', 'boardmc-salesforce-gravity-forms' );
 
 	if ( ! empty( $missing ) ) {
 		return new \WP_Error(
 			'boardmc_sfgf_missing_config',
 			sprintf(
-				/* translators: %s: comma-separated list of missing constant names. */
-				__( 'Missing Salesforce configuration: %s', 'boardmc-salesforce-gravity-forms' ),
+				/* translators: %s: comma-separated list of missing setting labels. */
+				__( 'Missing Salesforce configuration: %s. Set these under Settings → BoardMC Salesforce, or as wp-config.php constants / environment variables.', 'boardmc-salesforce-gravity-forms' ),
 				implode( ', ', $missing )
 			)
 		);

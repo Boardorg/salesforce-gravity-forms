@@ -4,12 +4,6 @@ Populates one or more Gravity Forms Checkbox fields with the sponsor
 companies for the event assigned to that form, queried directly from
 Salesforce (OAuth 2.0 Client Credentials — no JWT/RSA key involved).
 
-This plugin is derived from a handoff doc plus the existing
-`delegate-meeting-portal` app's Salesforce integration
-(`lib/salesforce/client.ts`, `lib/salesforce/attendeeMapper.ts`), reproduced
-here in the procedural, namespaced style of
-`members-board-org/plugins/boardmc-search-utilities`.
-
 ## Status
 
 Phases 1–3 of the implementation plan are built: bootstrap/config,
@@ -21,9 +15,25 @@ before that work (or production use) can start.
 
 ## Configuration
 
-Set these as `wp-config.php` constants (preferred) or environment variables.
-**Never** store them in `wp_options`, Gravity Forms metadata, or an
-admin-editable form field.
+Production runs on WP Engine's standard managed WordPress plans, which offer
+neither environment variables nor deploy-time control over `wp-config.php`
+(the only access available there is SFTP and phpMyAdmin) — so, as an
+explicit decision and a deliberate departure from the more common "never
+store these in `wp_options`" guidance, credentials are entered through
+**Settings → BoardMC Salesforce** in wp-admin and stored, unencrypted, in
+`wp_options`.
+
+That trade-off was made knowingly: it's a wider blast radius than a
+constant would be (a routine database backup/export now contains the
+secret, where it otherwise wouldn't), accepted because SFTP/phpMyAdmin are
+the only channels this environment actually provides. The client secret
+field is write-only — it's never redisplayed once saved, only "configured"
+or "not configured" — and the option is stored non-autoloaded.
+
+A `wp-config.php` constant or environment variable of the matching name, if
+defined, always takes precedence over the wp_admin-entered value — so a
+VIP-hosted or local environment (like this plugin's dev sandbox) can still
+configure it the original way instead:
 
 | Constant | Purpose |
 |---|---|
@@ -36,7 +46,8 @@ admin-editable form field.
 
 ```text
 includes/
-├── config/config.php               Reads the constants above; fails loudly (WP_Error) if incomplete.
+├── config/config.php               Reads the constants above (or their wp_options fallback); fails loudly (WP_Error) if incomplete.
+├── admin/credentials-settings.php  wp-admin screen for the wp_options fallback (Settings → BoardMC Salesforce).
 ├── helpers/utilities.php           Gravity Forms–aware logging (falls back to error_log) + cache-lock helpers.
 ├── cache/
 │   ├── token-cache.php             Persists the Salesforce access token across requests (transients).
