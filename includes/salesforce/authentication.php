@@ -116,19 +116,32 @@ function fetch_token() {
 	$body        = json_decode( wp_remote_retrieve_body( $response ), true );
 
 	if ( 200 !== $status_code || empty( $body['access_token'] ) || empty( $body['instance_url'] ) ) {
-		// Log only the status and Salesforce's error code, never the
-		// response body (which could echo back request parameters).
+		// Salesforce's OAuth error responses only ever contain `error` and
+		// `error_description` -- they don't echo back the submitted
+		// client_id/client_secret -- so these are safe to log and to surface
+		// to an admin trying to diagnose a failed connection.
+		$error_code = is_array( $body ) ? ( $body['error'] ?? null ) : null;
+		$error_description = is_array( $body ) ? ( $body['error_description'] ?? null ) : null;
+
 		Utilities\log(
 			'error',
 			'Salesforce token request was rejected',
 			[
-				'status'     => $status_code,
-				'error_code' => is_array( $body ) ? ( $body['error'] ?? null ) : null,
+				'status'            => $status_code,
+				'error_code'        => $error_code,
+				'error_description' => $error_description,
 			]
 		);
 		return new \WP_Error(
 			'sfgf_auth_failed',
-			__( 'Unable to authenticate with Salesforce.', 'salesforce-gravity-forms' )
+			$error_code
+				? sprintf(
+					/* translators: 1: Salesforce's OAuth error code (e.g. invalid_client), 2: its description. */
+					__( 'Salesforce rejected the request: %1$s (%2$s)', 'salesforce-gravity-forms' ),
+					$error_code,
+					$error_description ? $error_description : __( 'no further detail provided', 'salesforce-gravity-forms' )
+				)
+				: __( 'Unable to authenticate with Salesforce.', 'salesforce-gravity-forms' )
 		);
 	}
 
