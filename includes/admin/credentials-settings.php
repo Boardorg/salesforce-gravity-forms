@@ -18,6 +18,9 @@ namespace SalesforceGravityForms\Admin\CredentialsSettings;
 // Set our aliases.
 use SalesforceGravityForms\Config;
 use SalesforceGravityForms\Salesforce\Authentication;
+use SalesforceGravityForms\Salesforce\QueryBuilders;
+use SalesforceGravityForms\Salesforce\SponsorRecords;
+use SalesforceGravityForms\Providers\SalesforceSponsorProvider;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -31,6 +34,10 @@ const PAGE_SLUG      = 'sfgf-credentials';
 // this page directly instead of to options.php.
 const TEST_CONNECTION_ACTION = 'sfgf_test_connection';
 const TEST_CONNECTION_NONCE  = 'sfgf_test_connection_nonce';
+
+// Nonce action/name for the "Test Sponsor Query" tool, same reasoning.
+const TEST_QUERY_ACTION = 'sfgf_test_query';
+const TEST_QUERY_NONCE  = 'sfgf_test_query_nonce';
 
 // Start our engines.
 add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
@@ -153,6 +160,16 @@ function render_settings_page() {
 		handle_test_connection();
 	}
 
+	// Handle a "Test Sponsor Query" submission. Unlike the two above, this
+	// one has a result worth rendering as a table, not just a one-line
+	// notice, so its result is captured and handed to a dedicated renderer
+	// instead of going through add_settings_error().
+	$event_code_value = isset( $_POST['sfgf_test_event_code'] ) ? sanitize_text_field( wp_unslash( $_POST['sfgf_test_event_code'] ) ) : '';
+	$query_test_result = null;
+	if ( isset( $_POST['sfgf_test_query'] ) && check_admin_referer( TEST_QUERY_ACTION, TEST_QUERY_NONCE ) ) {
+		$query_test_result = run_test_query( $event_code_value );
+	}
+
 	// Add error/update messages.
 	settings_errors( SETTINGS_GROUP );
 	?>
@@ -181,6 +198,134 @@ function render_settings_page() {
 			<input type="hidden" name="sfgf_test_connection" value="1">
 			<?php submit_button( __( 'Test Connection', 'salesforce-gravity-forms' ), 'secondary' ); ?>
 		</form>
+
+		<hr>
+
+		<h2><?php esc_html_e( 'Test Sponsor Query', 'salesforce-gravity-forms' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Runs the actual sponsor query and normalization code against live Salesforce data for one event code -- nothing is cached or saved. Use a real, known Conference code from your Salesforce org.', 'salesforce-gravity-forms' ); ?>
+		</p>
+		<form method="post">
+			<?php wp_nonce_field( TEST_QUERY_ACTION, TEST_QUERY_NONCE ); ?>
+			<input
+				type="text"
+				name="sfgf_test_event_code"
+				value="<?php echo esc_attr( $event_code_value ); ?>"
+				class="regular-text"
+				placeholder="e.g. NAMLS2026"
+			>
+			<input type="hidden" name="sfgf_test_query" value="1">
+			<?php submit_button( __( 'Run Test Query', 'salesforce-gravity-forms' ), 'secondary' ); ?>
+		</form>
+		<?php render_test_query_result( $query_test_result ); ?>
+	</div>
+	<?php
+}
+
+/**
+ * Runs the sponsor query-builder, client, and normalization code for one
+ * event code and returns a summary suitable for on-screen display. Always
+ * live -- deliberately bypasses ChoiceCache so every click reflects current
+ * Salesforce data.
+ *
+ * @param string $event_code Event code to test.
+ * @return array{soql: string, raw_count: int, skipped_count: int, choices: array}|\WP_Error
+ */
+function run_test_query( $event_code ) {
+	if ( '' === trim( $event_code ) ) {
+		return new \WP_Error( 'sfgf_test_query_missing_event_code', __( 'Enter an event code to test.', 'salesforce-gravity-forms' ) );
+	}
+
+	// Build (and validate) the SOQL first so an invalid event code fails
+	// fast with the same error a real render would produce.
+	$soql = QueryBuilders\build_sponsor_query( $event_code );
+	if ( is_wp_error( $soql ) ) {
+		return $soql;
+	}
+
+	// Live query -- SponsorRecords/Client/Authentication handle pagination,
+	// auth, and the invalid-session retry the same as any other caller.
+	$records = SponsorRecords\get_raw_sponsor_records( $event_code );
+	if ( is_wp_error( $records ) ) {
+		return $records;
+	}
+
+	list( $companies, $skipped_count ) = SalesforceSponsorProvider\group_by_account( $records );
+
+	return [
+		'soql'          => $soql,
+		'raw_count'     => count( $records ),
+		'skipped_count' => $skipped_count,
+		'choices'       => SalesforceSponsorProvider\sort_choices( array_values( $companies ) ),
+	];
+}
+
+/**
+ * Renders the result of run_test_query(): a summary line, a table of the
+ * normalized choices (label, Account Id, attendee-row count), and the SOQL
+ * used, collapsed behind a <details> so it doesn't dominate the page.
+ *
+ * @param array|\WP_Error|null $result Return value of run_test_query(), or null if no test has run yet.
+ * @return void
+ */
+function render_test_query_result( $result ) {
+	if ( null === $result ) {
+		return;
+	}
+	?>
+	<div style="margin-top: 1em; max-width: 900px;">
+		<?php if ( is_wp_error( $result ) ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( $result->get_error_message() ); ?></p></div>
+			<?php return; ?>
+		<?php endif; ?>
+
+		<div class="notice notice-success inline">
+			<p>
+				<?php
+				printf(
+					/* translators: 1: raw qualifying row count, 2: distinct sponsor company count after deduplication. */
+					esc_html__( '%1$d qualifying Attendee__c row(s) returned, %2$d distinct sponsor compan(y/ies) after deduplication by Account Id.', 'salesforce-gravity-forms' ),
+					(int) $result['raw_count'],
+					count( $result['choices'] )
+				);
+				?>
+				<?php if ( $result['skipped_count'] > 0 ) : ?>
+					<?php
+					printf(
+						/* translators: %d: count of rows skipped for missing Account Id/Name. */
+						esc_html__( ' %d row(s) skipped for missing Account Id or Account Name.', 'salesforce-gravity-forms' ),
+						(int) $result['skipped_count']
+					);
+					?>
+				<?php endif; ?>
+			</p>
+		</div>
+
+		<?php if ( ! empty( $result['choices'] ) ) : ?>
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Label (Account Name)', 'salesforce-gravity-forms' ); ?></th>
+						<th><?php esc_html_e( 'Value (Account Id)', 'salesforce-gravity-forms' ); ?></th>
+						<th><?php esc_html_e( 'Attendee Rows', 'salesforce-gravity-forms' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $result['choices'] as $choice ) : ?>
+						<tr>
+							<td><?php echo esc_html( $choice['label'] ); ?></td>
+							<td><code><?php echo esc_html( $choice['value'] ); ?></code></td>
+							<td><?php echo (int) count( $choice['metadata']['attendee_ids'] ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+
+		<details style="margin-top: 1em;">
+			<summary><?php esc_html_e( 'SOQL used', 'salesforce-gravity-forms' ); ?></summary>
+			<pre style="white-space: pre-wrap; background: #f6f7f7; padding: 1em;"><?php echo esc_html( $result['soql'] ); ?></pre>
+		</details>
 	</div>
 	<?php
 }
