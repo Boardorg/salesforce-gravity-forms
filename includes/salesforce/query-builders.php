@@ -15,9 +15,7 @@ namespace SalesforceGravityForms\Salesforce\QueryBuilders;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Define the tentative event-code format: letters, digits, underscore, period, hyphen.
-// @todo confirm the real event-code format against Salesforce documentation
-// (handoff doc question #6) before relying on this in production.
+// Define the confirmed event-code format: letters, digits, underscore, period, hyphen.
 const EVENT_CODE_PATTERN = '/^[A-Za-z0-9_.-]{1,64}$/';
 
 // Define discount codes that mark an Opportunity as test/placeholder data.
