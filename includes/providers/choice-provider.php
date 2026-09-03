@@ -1,16 +1,8 @@
 <?php
 /**
- * Normalized choice contract consumed by Gravity Forms.
- *
- * This is the seam between "where the data came from" and "how a Gravity
- * Forms field renders it". The Gravity Forms layer (a later phase) will only
- * ever call get_choices() here and will never know Salesforce is involved —
- * a future proxy/API-backed provider can be registered under the same
- * source key without touching any Gravity Forms integration code.
- *
- * Also owns the fresh/stale caching policy described in the handoff doc's
- * "Choice caching and failure behavior" section, since that policy applies
- * to any provider, not just the Salesforce one.
+ * The single place Gravity Forms asks for a normalized list of choices. 
+ * Also handles caching: reuse a fresh list if we have one, and fall
+ * back to a stale list if a live lookup fails.
  *
  * @package SalesforceGravityForms
  */
@@ -18,6 +10,7 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Providers\ChoiceProvider;
 
+// Set our aliases.
 use SalesforceGravityForms\Providers\SalesforceSponsorProvider;
 use SalesforceGravityForms\Cache\ChoiceCache;
 use SalesforceGravityForms\Helpers\Utilities;
@@ -26,27 +19,28 @@ use SalesforceGravityForms\Helpers\Utilities;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * Returns the normalized choice list for one source and event, applying the
- * fresh/stale cache policy: a fresh-cache hit is returned immediately; a
- * fresh-cache miss queries the provider; a provider failure falls back to
- * the stale cache; and only a provider failure with no stale cache at all
- * produces an error, so a Gravity Forms field can distinguish "empty list"
- * from "we could not safely determine the list."
+ * Returns the choice list for one source and event. Uses a fresh cached
+ * list if we have one; otherwise queries live and caches the result. If the
+ * live query fails, falls back to a stale cached list, or returns an error
+ * if there's no stale list either.
  *
- * @param string $source     Registered provider source key (e.g. 'sponsors').
+ * @param string $source     Which source to use (e.g. 'sponsors').
  * @param string $event_code Conference/event code the choices are scoped to.
- * @return array|\WP_Error Normalized choices, each shaped like:
+ * @return array|\WP_Error The choices, each shaped like:
  *     { value, label, source_id, active, metadata: { attendee_ids } }
  */
 function get_choices( $source, $event_code ) {
-	// Fast path: a still-fresh cached list needs no provider call at all.
+
+	// Return the cached list if it's still fresh.
 	$fresh = ChoiceCache\get_fresh( $source, $event_code );
 	if ( null !== $fresh ) {
 		return $fresh;
 	}
 
+	// Look up which function handles this source.
 	$providers = apply_filters( 'sfgf_choice_providers', [ 'sponsors' => __NAMESPACE__ . '\\dispatch_sponsors' ] );
 
+	// Bail if no provider is registered for this source.
 	if ( ! isset( $providers[ $source ] ) || ! is_callable( $providers[ $source ] ) ) {
 		return new \WP_Error(
 			'sfgf_unknown_choice_source',
@@ -58,37 +52,40 @@ function get_choices( $source, $event_code ) {
 		);
 	}
 
+	// Ask the provider for its choices.
 	$choices = call_user_func( $providers[ $source ], $event_code );
 
+	// Did the provider return an error?
 	if ( is_wp_error( $choices ) ) {
+
+		// Log the error.
 		Utilities\log(
 			'error',
 			'Choice provider failed; attempting stale-cache fallback',
 			[ 'source' => $source, 'event_code' => $event_code, 'error' => $choices->get_error_code() ]
 		);
 
+		// Fall back to the stale list, if there is one.
 		$stale = ChoiceCache\get_stale( $source, $event_code );
 		if ( null !== $stale ) {
 			return apply_filters( 'sfgf_choices', $stale, $source, $event_code );
 		}
 
-		// No stale list to fall back to — surface the controlled error
-		// rather than silently accepting arbitrary submitted values.
+		// No stale list exists so return the error.
 		return $choices;
 	}
 
+	// Cache the result, both as the fresh copy and as the stale fallback.
 	ChoiceCache\set_fresh( $source, $event_code, $choices );
-	// Only ever updated after a successful query, per the handoff doc.
 	ChoiceCache\set_stale( $source, $event_code, $choices );
 
+	// Return the choices with a filter hook.
 	return apply_filters( 'sfgf_choices', $choices, $source, $event_code );
 }
 
 /**
- * Thin adapter to the built-in Salesforce sponsor provider, kept as its own
- * function (rather than referencing SalesforceSponsorProvider\get_choices
- * directly in the array literal above) so the default array is easy to read
- * without an extra `use function` import line.
+ * Calls the built-in Salesforce sponsor provider. Kept as its own function
+ * so the provider list above stays easy to read.
  *
  * @param string $event_code Conference/event code.
  * @return array|\WP_Error

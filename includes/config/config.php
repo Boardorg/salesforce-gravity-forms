@@ -2,19 +2,10 @@
 /**
  * Reads the server-side Salesforce configuration.
  *
- * A defined PHP constant (typically set in wp-config.php) or an environment
- * variable of the same name always takes precedence, for environments that
- * support them (e.g. this plugin's local VIP Go development sandbox).
- *
- * Production runs on WP Engine's standard managed WordPress plans, which
- * offer neither environment variables nor deploy-time control over
- * wp-config.php. The only channels available there are SFTP and phpMyAdmin,
- * so — as an explicit, documented decision, not the handoff doc's original
- * "constants only" design — these values fall back to wp_options, entered
- * through the settings screen in includes/admin/credentials-settings.php.
- * That trades the doc's original defense (a compromised database alone
- * can't reveal the secret) for what SFTP/phpMyAdmin-only access actually
- * allows; see the README's "Configuration" section for the full tradeoff.
+ * A defined constant or environment variable always takes precedence. Falls
+ * back to wp_options, entered via includes/admin/credentials-settings.php,
+ * for hosts like production's WP Engine plan that offer neither -- see the
+ * README's "Configuration" section for the tradeoff.
  *
  * @package SalesforceGravityForms
  */
@@ -25,39 +16,37 @@ namespace SalesforceGravityForms\Config;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Default Salesforce REST API version, matching the existing app's default.
+// Default Salesforce REST API version.
 const DEFAULT_API_VERSION = '59.0';
 
-// wp_options fallback keys, read only when neither a constant nor an
-// environment variable of the corresponding name is defined.
+// Define wp_options fallback keys.
 const OPTION_LOGIN_URL     = 'sfgf_salesforce_login_url';
 const OPTION_CLIENT_ID     = 'sfgf_salesforce_client_id';
 const OPTION_CLIENT_SECRET = 'sfgf_salesforce_client_secret';
 const OPTION_API_VERSION   = 'sfgf_salesforce_api_version';
 
 /**
- * Reads a single configuration value, preferring a defined PHP constant
- * (typically set in wp-config.php), falling back to an environment
- * variable of the same name, and finally to a wp_options row for hosts that
- * offer neither.
+ * Reads a single configuration value: a defined constant first, then an
+ * environment variable, then wp_options.
  *
  * @param string $constant_name Constant/environment-variable name to read.
  * @param string $option_name   wp_options key to fall back to.
  * @return string|null The value, or null if none of the three sources define it.
  */
 function read_value( $constant_name, $option_name ) {
+
 	// A defined constant takes precedence over the environment.
 	if ( defined( $constant_name ) ) {
 		return (string) constant( $constant_name );
 	}
 
-	// Next, the environment (e.g. a VIP environment variable).
+	// Next, check the environment.
 	$env_value = getenv( $constant_name );
 	if ( false !== $env_value ) {
 		return $env_value;
 	}
 
-	// Last resort: wp_options, for a host that provides neither of the above.
+	// Last resort: check wp_options table.
 	$option_value = get_option( $option_name, '' );
 	return '' === $option_value ? null : $option_value;
 }
@@ -90,22 +79,22 @@ function get_client_secret() {
 }
 
 /**
- * Reads the configured Salesforce REST API version, defaulting to the same
- * version the existing Salesforce integration pins to.
+ * Reads the configured Salesforce REST API version, or the default if unset.
  *
  * @return string
  */
 function get_api_version() {
+
+	// Read the configured version, if any.
 	$configured = read_value( 'SFGF_SALESFORCE_API_VERSION', OPTION_API_VERSION );
-	// An explicit but empty value should still fall through to the default.
+
+	// An empty value should still fall through to the default.
 	return $configured ? $configured : DEFAULT_API_VERSION;
 }
 
 /**
- * Reads and validates the full credential bundle needed to talk to
- * Salesforce, failing loudly with a controlled error when anything required
- * is missing rather than letting a downstream OAuth call produce an opaque
- * failure.
+ * Reads and validates the full credential bundle, returns an
+ * error if anything required is missing.
  *
  * @return array|\WP_Error {
  *     @type string $login_url     Salesforce login/base URL.
@@ -115,17 +104,19 @@ function get_api_version() {
  * }
  */
 function get_credentials() {
+
+	// Read each configured credential.
 	$login_url     = get_login_url();
 	$client_id     = get_client_id();
 	$client_secret = get_client_secret();
 
-	// Collect every missing setting so the resulting error is actionable in
-	// one read instead of requiring several failed attempts.
+	// Collect every missing setting.
 	$missing = [];
 	if ( ! $login_url ) $missing[] = __( 'Salesforce Login URL', 'salesforce-gravity-forms' );
 	if ( ! $client_id ) $missing[] = __( 'Client ID', 'salesforce-gravity-forms' );
 	if ( ! $client_secret ) $missing[] = __( 'Client Secret', 'salesforce-gravity-forms' );
 
+	// If anything is missing, return an error.
 	if ( ! empty( $missing ) ) {
 		return new \WP_Error(
 			'sfgf_missing_config',
@@ -137,6 +128,7 @@ function get_credentials() {
 		);
 	}
 
+	// Otherwise, return the full credential bundle.
 	return [
 		'login_url'     => $login_url,
 		'client_id'     => $client_id,

@@ -1,11 +1,8 @@
 <?php
 /**
- * Authenticated Salesforce REST requests.
- *
- * Owns pagination (following every `nextRecordsUrl` until `done`), response
- * validation, and the one-time invalid-session retry. Callers only ever see
- * a flat array of records or a structured WP_Error — never a raw HTTP
- * response.
+ * Runs authenticated Salesforce queries. Follows pagination, retries once
+ * if the session expired, and always returns either an array of records or
+ * a WP_Error.
  *
  * @package SalesforceGravityForms
  */
@@ -13,6 +10,7 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Salesforce\Client;
 
+// Set our aliases.
 use SalesforceGravityForms\Config;
 use SalesforceGravityForms\Salesforce\Authentication;
 use SalesforceGravityForms\Helpers\Utilities;
@@ -20,14 +18,10 @@ use SalesforceGravityForms\Helpers\Utilities;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Finite request timeout so an unreachable/slow Salesforce instance cannot
-// hang a WordPress request indefinitely.
+// Define a timeout so a slow Salesforce endpoint can't hang the request.
 const REQUEST_TIMEOUT_SECONDS = 20;
 
-// Hard ceiling on the number of `nextRecordsUrl` pages we will follow for a
-// single query. Salesforce's real page size (2,000 records/page) means this
-// comfortably covers any plausible sponsor list while still guaranteeing we
-// never loop indefinitely on a malformed/looping response.
+// Define a limit on how many pages we'll follow, so a bad response can't loop forever.
 const MAX_PAGES = 200;
 
 /**
@@ -38,28 +32,30 @@ const MAX_PAGES = 200;
  * @return array<int, array<string, mixed>>|\WP_Error
  */
 function query( $soql ) {
+
+	// Authenticate and bail if it fails.
 	$auth = Authentication\authenticate();
 	if ( is_wp_error( $auth ) ) {
 		return $auth;
 	}
 
+	// Run the query.
 	$result = execute_query( $auth, $soql );
 
-	// If — and only if — the token went stale between caching and use,
-	// drop it and retry the whole query exactly once with a fresh token.
+	// Did we get an invalid-session error? Clear the token and retry once.
 	if ( is_wp_error( $result ) && 'sfgf_invalid_session' === $result->get_error_code() ) {
-		Authentication\invalidate();
 
+		// Clear the stale token and authenticate again.
+		Authentication\invalidate();
 		$auth = Authentication\authenticate();
 		if ( is_wp_error( $auth ) ) {
 			return $auth;
 		}
 
+		// Retry the query with the fresh token.
 		$result = execute_query( $auth, $soql );
 
-		// A second invalid-session response means something is wrong beyond
-		// a simple expired token; surface a controlled error instead of
-		// retrying again.
+		// Still invalid after retrying? Give up rather than retry again.
 		if ( is_wp_error( $result ) && 'sfgf_invalid_session' === $result->get_error_code() ) {
 			return new \WP_Error(
 				'sfgf_query_failed',
@@ -68,52 +64,58 @@ function query( $soql ) {
 		}
 	}
 
+	// Return the result (or error).
 	return $result;
 }
 
 /**
- * Runs one query attempt (with the given, already-authenticated credentials)
- * to completion, following pagination.
+ * Runs one query attempt to completion, following pagination.
  *
  * @param array{access_token: string, instance_url: string} $auth Authenticated token/instance bundle.
  * @param string                                             $soql  SOQL statement to execute.
  * @return array<int, array<string, mixed>>|\WP_Error
  */
 function execute_query( $auth, $soql ) {
+
+	// Build the query URL.
 	$api_version = Config\get_api_version();
 	$path        = '/services/data/v' . $api_version . '/query?q=' . rawurlencode( $soql );
 
+	// Set up an array to collect every record across all pages, and a page counter.
 	$records = [];
 	$next    = $path;
 	$pages   = 0;
 
-	// Follow every `nextRecordsUrl` until Salesforce reports `done`, capped
-	// by MAX_PAGES so a malformed response can never cause an infinite loop.
+	// Follow every page until Salesforce reports done, or we hit the page limit.
 	while ( null !== $next && $pages < MAX_PAGES ) {
+
+		// Fetch this page and bail if it fails.
 		$page = fetch_page( $auth, $next );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
 
+		// Add its records and move to the next page, if any.
 		$records = array_merge( $records, $page['records'] );
 		$next    = $page['done'] ? null : $page['next_records_url'];
 		$pages++;
 	}
 
+	// Return every record collected across all pages.
 	return $records;
 }
 
 /**
- * Fetches one page of query results from an absolute-or-relative Salesforce
- * REST path.
+ * Fetches one page of query results from a Salesforce REST path.
  *
  * @param array{access_token: string, instance_url: string} $auth Authenticated token/instance bundle.
  * @param string                                             $path Path (or `nextRecordsUrl`) relative to the instance URL.
  * @return array{records: array, done: bool, next_records_url: string|null}|\WP_Error
  */
 function fetch_page( $auth, $path ) {
-	$url = $auth['instance_url'] . $path;
 
+	// Build the full URL and send the request.
+	$url      = $auth['instance_url'] . $path;
 	$response = wp_remote_get(
 		$url,
 		[
@@ -124,24 +126,27 @@ function fetch_page( $auth, $path ) {
 		]
 	);
 
+	// Did the request fail to connect or time out?
 	if ( is_wp_error( $response ) ) {
-		// A network-level WP_Error never contains the Authorization header.
+
+		// Log the error.
 		Utilities\log( 'error', 'Salesforce query request failed to connect', [ 'error' => $response->get_error_code() ] );
 		return $response;
 	}
 
+	// Read the response.
 	$status_code = wp_remote_retrieve_response_code( $response );
 	$body        = json_decode( wp_remote_retrieve_body( $response ), true );
 
-	// Salesforce reports an expired/invalid session as a 401 with an
-	// errorCode of INVALID_SESSION_ID in the (array of one) JSON body.
+	// Did Salesforce report an expired session (a 401 with INVALID_SESSION_ID)?
 	if ( 401 === $status_code && is_array( $body ) && isset( $body[0]['errorCode'] ) && 'INVALID_SESSION_ID' === $body[0]['errorCode'] ) {
 		return new \WP_Error( 'sfgf_invalid_session', __( 'Salesforce session is no longer valid.', 'salesforce-gravity-forms' ) );
 	}
 
+	// Did Salesforce reject the request or return something we don't recognize?
 	if ( 200 !== $status_code || ! is_array( $body ) || ! isset( $body['records'] ) ) {
-		// Log the status and, when Salesforce provided one, its error code —
-		// never the full body, which could include query results.
+
+		// Log the status/error code only.
 		Utilities\log(
 			'error',
 			'Salesforce query request was rejected',
@@ -150,12 +155,15 @@ function fetch_page( $auth, $path ) {
 				'error_code' => is_array( $body ) ? ( $body[0]['errorCode'] ?? null ) : null,
 			]
 		);
+
+		// Return a generic error to avoid exposing Salesforce details to the user.
 		return new \WP_Error(
 			'sfgf_query_failed',
 			__( 'Salesforce query failed.', 'salesforce-gravity-forms' )
 		);
 	}
 
+	// Return this page's records plus pagination state.
 	return [
 		'records'          => $body['records'],
 		'done'             => ! empty( $body['done'] ),

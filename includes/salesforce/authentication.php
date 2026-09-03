@@ -1,11 +1,6 @@
 <?php
 /**
- * Salesforce OAuth 2.0 Client Credentials authentication.
- *
- * Mirrors the existing app's lib/salesforce/client.ts authenticate() flow:
- * a Client Credentials POST to /services/oauth2/token, a cached token, and
- * no JWT/RSA involvement. This module knows how to obtain a token; it knows
- * nothing about SOQL or Gravity Forms.
+ * Gets and caches a Salesforce access token using OAuth 2.0 Client Credentials.
  *
  * @package SalesforceGravityForms
  */
@@ -13,6 +8,7 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Salesforce\Authentication;
 
+// Set our aliases.
 use SalesforceGravityForms\Config;
 use SalesforceGravityForms\Cache\TokenCache;
 use SalesforceGravityForms\Helpers\Utilities;
@@ -20,55 +16,54 @@ use SalesforceGravityForms\Helpers\Utilities;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Lock key guarding concurrent token fetches so simultaneous page requests
-// don't all miss the cache and hit the token endpoint at once.
+// Define a lock key so multiple requests don't all fetch a token at once.
 const AUTH_LOCK_KEY = 'sfgf_auth_lock';
 
-// Finite timeouts so a slow/unreachable Salesforce endpoint cannot hang a
-// WordPress request indefinitely.
+// Define a timeout so a slow Salesforce endpoint can't hang the request.
 const REQUEST_TIMEOUT_SECONDS = 15;
 
 /**
- * Returns a valid Salesforce access token and instance URL, fetching and
- * caching a fresh one if needed.
+ * Returns a Salesforce access token and instance URL, fetching and caching
+ * a fresh one if needed.
  *
  * @return array{access_token: string, instance_url: string}|\WP_Error
  */
 function authenticate() {
-	// Fast path: reuse the cached token if it's still within its TTL.
+
+	// Reuse the cached token if it hasn't expired.
 	$cached = TokenCache\get_cached_token();
 	if ( null !== $cached ) {
 		return $cached;
 	}
 
-	// Try to become the single request that actually fetches a new token.
+	// Check if we are already fetching a token in another request.
 	if ( ! Utilities\acquire_lock( AUTH_LOCK_KEY ) ) {
-		// Another request is already fetching; wait briefly for its result
-		// to land in the cache instead of issuing a redundant token request.
+
+		// Another request is already fetching so wait for its result instead.
 		$result = Utilities\wait_for(
 			function () {
 				return TokenCache\get_cached_token();
 			}
 		);
+
+		// If we got a result, return it.
 		if ( null !== $result ) {
 			return $result;
 		}
-		// Timed out waiting — fall through and fetch it ourselves rather
-		// than fail the request outright.
 	}
 
+	// Give up waiting and fetch it ourselves.
 	$token = fetch_token();
 
 	// Always release the lock, whether the fetch succeeded or failed.
 	Utilities\release_lock( AUTH_LOCK_KEY );
 
+	// Return the token (or error).
 	return $token;
 }
 
 /**
- * Clears the cached token, forcing the next authenticate() call to fetch a
- * fresh one. Called by the client after a Salesforce INVALID_SESSION_ID
- * response.
+ * Clears the cached token, forcing the next authenticate() call to fetch a fresh one.
  *
  * @return void
  */
@@ -77,22 +72,22 @@ function invalidate() {
 }
 
 /**
- * Performs the OAuth 2.0 Client Credentials exchange against Salesforce's
- * token endpoint.
+ * Requests a new access token from Salesforce using the Client Credentials flow.
  *
  * @return array{access_token: string, instance_url: string}|\WP_Error
  */
 function fetch_token() {
+
+	// Read the configured credentials and bail if we're missing any.
 	$credentials = Config\get_credentials();
 	if ( is_wp_error( $credentials ) ) {
 		return $credentials;
 	}
 
+	// Build the token endpoint URL.
 	$token_url = trailingslashit( $credentials['login_url'] ) . 'services/oauth2/token';
 
-	// wp_remote_post() form-encodes an array body, matching the
-	// application/x-www-form-urlencoded content type Salesforce's token
-	// endpoint expects.
+	// Send the request.
 	$response = wp_remote_post(
 		$token_url,
 		[
@@ -105,24 +100,26 @@ function fetch_token() {
 		]
 	);
 
+	// Did the request fail to connect or time out?
 	if ( is_wp_error( $response ) ) {
-		// wp_remote_post()'s own WP_Error (network failure, timeout, etc.)
-		// never contains the request body, so it's already safe to log.
+
+		// A connection failure is already safe to log, so log it and bail.
 		Utilities\log( 'error', 'Salesforce token request failed to connect', [ 'error' => $response->get_error_code() ] );
 		return $response;
 	}
 
+	// Read the response.
 	$status_code = wp_remote_retrieve_response_code( $response );
 	$body        = json_decode( wp_remote_retrieve_body( $response ), true );
 
+	// Did Salesforce reject the request or return a malformed response?
 	if ( 200 !== $status_code || empty( $body['access_token'] ) || empty( $body['instance_url'] ) ) {
-		// Salesforce's OAuth error responses only ever contain `error` and
-		// `error_description` -- they don't echo back the submitted
-		// client_id/client_secret -- so these are safe to log and to surface
-		// to an admin trying to diagnose a failed connection.
+
+		// Get the error code and description if Salesforce provided them.
 		$error_code = is_array( $body ) ? ( $body['error'] ?? null ) : null;
 		$error_description = is_array( $body ) ? ( $body['error_description'] ?? null ) : null;
 
+		// Log the error and return a WP_Error.
 		Utilities\log(
 			'error',
 			'Salesforce token request was rejected',
@@ -145,12 +142,15 @@ function fetch_token() {
 		);
 	}
 
+	// Set up the token array to return and cache.
 	$token = [
 		'access_token' => $body['access_token'],
 		'instance_url' => $body['instance_url'],
 	];
 
+	// Cache the token for future requests.
 	TokenCache\set_cached_token( $token['access_token'], $token['instance_url'] );
 
+	// Return the token.
 	return $token;
 }

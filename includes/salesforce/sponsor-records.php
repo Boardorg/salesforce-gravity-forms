@@ -8,6 +8,7 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Salesforce\SponsorRecords;
 
+// Set our aliases.
 use SalesforceGravityForms\Salesforce\Client;
 use SalesforceGravityForms\Salesforce\QueryBuilders;
 
@@ -22,10 +23,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * @return array<int, array<string, mixed>>|\WP_Error Raw Salesforce rows, or a WP_Error.
  */
 function get_raw_sponsor_records( $event_code ) {
+
+	// Build the SOQL and bail if the event code is invalid.
 	$soql = QueryBuilders\build_sponsor_query( $event_code );
 	if ( is_wp_error( $soql ) ) {
 		return $soql;
 	}
 
+	// Run the query and return its records.
 	return Client\query( $soql );
 }

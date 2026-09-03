@@ -2,12 +2,9 @@
 /**
  * Builds the sponsor SOQL query.
  *
- * The WHERE clause here is reverse-engineered from Salesforce report
- * 00OPZ00000DSuhJ2AT via the existing app's
- * lib/salesforce/client.ts (commonMeetingDataWhere() / getMeetingDataSponsors()).
- * That report-derived logic is actively evolving upstream — keep it isolated
- * to this file, and if it changes, change it only here so the rest of the
- * plugin never has to know why a given row is or isn't a sponsor.
+ * The WHERE clause is reverse-engineered from Salesforce report
+ * 00OPZ00000DSuhJ2AT (see the existing app's client.ts). That logic is
+ * still evolving -- keep changes isolated to this file.
  *
  * @package SalesforceGravityForms
  */
@@ -18,26 +15,23 @@ namespace SalesforceGravityForms\Salesforce\QueryBuilders;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Tentative event-code format: letters, digits, underscore, period, hyphen.
+// Define the tentative event-code format: letters, digits, underscore, period, hyphen.
 // @todo confirm the real event-code format against Salesforce documentation
 // (handoff doc question #6) before relying on this in production.
 const EVENT_CODE_PATTERN = '/^[A-Za-z0-9_.-]{1,64}$/';
 
-// Discount codes that mark an Opportunity as test/placeholder data.
+// Define discount codes that mark an Opportunity as test/placeholder data.
 const EXCLUDED_DISCOUNT_CODES = [ 'JUSTTESTING', 'DOLLARTEST', 'ONEDOLLARTEST' ];
 
-// Account-name substrings that mark an internal/test account. Matching is
-// case-insensitive (SOQL LIKE).
+// Define account-name substrings that mark an internal/test account (matched case-insensitively).
 const EXCLUDED_ACCOUNT_NAME_FRAGMENTS = [ 'Test', 'Testing', 'SocialMedia', 'Assemble' ];
 
-// Minimal field list — only what a sponsor-company choice needs, unlike the
-// existing app's much wider MEETING_DATA_FIELDS.
+// Define the minimal field list a sponsor-company choice needs.
 const SPONSOR_SELECT_FIELDS = [ 'Id', 'Delegate__r.AccountId', 'Delegate__r.Account.Name' ];
 
 /**
- * Validates a configured event code against the (tentative) allowed
- * character format. Validation, not escaping, is the primary defense
- * against SOQL injection here — escaping apostrophes alone is not enough.
+ * Checks whether an event code matches the allowed character format. This
+ * is the main defense against SOQL injection here, not escaping.
  *
  * @param string $event_code Event code to validate.
  * @return bool
@@ -47,9 +41,8 @@ function is_valid_event_code( $event_code ) {
 }
 
 /**
- * Escapes a value for safe interpolation inside a single-quoted SOQL string
- * literal. Defense-in-depth only — callers must still validate the value
- * (e.g. via is_valid_event_code()) rather than relying on escaping alone.
+ * Escapes a value for a single-quoted SOQL string. Defense-in-depth only --
+ * callers must still validate first.
  *
  * @param string $value Raw value to escape.
  * @return string
@@ -77,14 +70,14 @@ function soql_string_list( $values ) {
 }
 
 /**
- * Builds the WHERE-clause fragment shared by every meeting-data role query,
- * matching the existing app's commonMeetingDataWhere().
+ * Builds the WHERE-clause fragment shared by every sponsor query.
  *
  * @param string $safe_event_code Already-validated and SOQL-escaped event code.
  * @return string A `cond1 AND cond2 AND ...` SOQL fragment.
  */
 function common_where( $safe_event_code ) {
-	// Every excluded-name fragment becomes its own NOT LIKE condition.
+
+	// Turn each excluded-name fragment into its own NOT LIKE condition.
 	$account_not_contain = implode(
 		' AND ',
 		array_map(
@@ -95,6 +88,7 @@ function common_where( $safe_event_code ) {
 		)
 	);
 
+	// Combine every condition with AND.
 	return implode(
 		' AND ',
 		[
@@ -110,14 +104,15 @@ function common_where( $safe_event_code ) {
 }
 
 /**
- * Builds the full sponsor-specific WHERE clause: the shared filters plus the
- * RecordType/StageName conditions that define "sponsor", matching the
- * existing app's getMeetingDataSponsors().
+ * Builds the full sponsor WHERE clause: the shared filters plus the
+ * RecordType/StageName conditions that define a sponsor.
  *
  * @param string $safe_event_code Already-validated and SOQL-escaped event code.
  * @return string
  */
 function sponsor_where( $safe_event_code ) {
+
+	// Add the sponsor-specific conditions.
 	return implode(
 		' AND ',
 		[
@@ -129,13 +124,14 @@ function sponsor_where( $safe_event_code ) {
 }
 
 /**
- * Builds the complete sponsor SOQL query for one event, validating the event
- * code first.
+ * Builds the complete sponsor SOQL query for one event.
  *
  * @param string $event_code Conference/event code, as configured on the Gravity Forms form.
  * @return string|\WP_Error The SOQL statement, or a WP_Error if the event code fails validation.
  */
 function build_sponsor_query( $event_code ) {
+
+	// Bail if the event code doesn't match the allowed format.
 	if ( ! is_valid_event_code( $event_code ) ) {
 		return new \WP_Error(
 			'sfgf_invalid_event_code',
@@ -143,8 +139,10 @@ function build_sponsor_query( $event_code ) {
 		);
 	}
 
+	// Escape the event code for safe interpolation.
 	$safe_event_code = escape_soql_string( $event_code );
 
+	// Build and return the full SOQL statement.
 	return sprintf(
 		'SELECT %s FROM Attendee__c WHERE %s ORDER BY Delegate__r.Account.Name ASC',
 		implode( ', ', SPONSOR_SELECT_FIELDS ),

@@ -8,35 +8,32 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Helpers\Utilities;
 
-// Alias the root namespace for shared plugin-level constants.
+// Set our aliases.
 use SalesforceGravityForms as Core;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Cache group used for the short stampede-prevention locks. A dedicated
-// group keeps these keys out of any other plugin's default-group traffic.
+// Cache group for the stampede-prevention locks.
 const LOCK_CACHE_GROUP = 'sfgf_locks';
 
 /**
  * Adds this plugin to the list of plugins Gravity Forms' logging screen can
- * enable logging for. Registered on the `gform_logging_supported` filter.
+ * enable logging for.
  *
  * @param array $plugins Slug => label pairs of loggable plugins.
  * @return array The filtered list, with this plugin added.
  */
 function register_logging_support( $plugins ) {
+
+	// Add this plugin to the loggable list.
 	$plugins[ Core\SLUG ] = 'Salesforce Gravity Forms';
 	return $plugins;
 }
 
 /**
- * Logs a message through Gravity Forms' logging system when available and
- * enabled, falling back to the PHP error log otherwise.
- *
- * Callers are responsible for keeping $message and $context free of
- * secrets, tokens, authorization headers, or personal data — this function
- * does not sanitize its input.
+ * Logs through Gravity Forms' logging system when available, falling back
+ * to the PHP error log.
  *
  * @param string $level   One of 'error' or 'debug'.
  * @param string $message Sanitized, human-readable log message.
@@ -44,10 +41,11 @@ function register_logging_support( $plugins ) {
  * @return void
  */
 function log( $level, $message, $context = [] ) {
-	// Fold structured context into the message; GF logging takes a single string.
+
+	// Fold the context into the message.
 	$full_message = $context ? $message . ' ' . wp_json_encode( $context ) : $message;
 
-	// Prefer Gravity Forms' own logging system when it has been loaded.
+	// Prefer Gravity Forms' logging when available.
 	if ( class_exists( '\GFLogging' ) ) {
 		\GFLogging::include_logger();
 		$message_type = 'error' === $level ? \KLogger::ERROR : \KLogger::DEBUG;
@@ -55,24 +53,21 @@ function log( $level, $message, $context = [] ) {
 		return;
 	}
 
-	// Fallback: plain PHP error log when Gravity Forms logging isn't available.
-	error_log( sprintf( '[%s] [%s] %s', Core\SLUG, $level, $full_message ) );
+	// Fallback: log to PHP's error log.
+	error_log( sprintf( '[%s] [%s] %s', Core\SLUG, $level, $full_message ) ); // phpcs:ignore -- This is a fallback.
 }
 
 /**
- * Attempts to acquire a short-lived, best-effort lock using the persistent
- * object cache's atomic "add" semantics (a VIP environment always runs a
- * persistent object cache, so this is race-safe there; on a plain
- * non-persistent cache it degrades to a non-atomic but harmless no-op guard).
+ * Attempts to acquire a short-lived lock using the object cache's atomic add.
  *
  * @param string $key         Lock key, unique per resource being guarded.
  * @param int    $ttl_seconds How long the lock is held before it expires on its own.
  * @return bool True if the lock was acquired, false if another request already holds it.
  */
 function acquire_lock( $key, $ttl_seconds = 10 ) {
-	// wp_cache_add() only succeeds if the key is not already set, giving us
-	// an atomic "acquire if free" primitive without a dedicated locking API.
-	return wp_cache_add( $key, 1, LOCK_CACHE_GROUP, $ttl_seconds );
+
+	// Add the lock key only if it's not already set.
+	return wp_cache_add( $key, 1, LOCK_CACHE_GROUP, $ttl_seconds ); // phpcs:ignore -- We defined the LOCK_CACHE_GROUP constant above.
 }
 
 /**
@@ -88,8 +83,6 @@ function release_lock( $key ) {
 /**
  * Blocks briefly for another request's in-flight work to finish, re-checking
  * a condition callback between short sleeps instead of holding a lock open.
- * Used when a lock is already held so this request can use whatever the
- * lock-holder produces instead of duplicating the same Salesforce call.
  *
  * @param callable $is_ready       Returns a non-null result once ready, or null to keep waiting.
  * @param int      $max_wait_ms    Maximum total time to wait, in milliseconds.
@@ -97,14 +90,21 @@ function release_lock( $key ) {
  * @return mixed The first non-null result from $is_ready, or null on timeout.
  */
 function wait_for( $is_ready, $max_wait_ms = 2000, $interval_ms = 200 ) {
+
+	// Poll until ready or the timeout elapses.
 	$elapsed_ms = 0;
 	while ( $elapsed_ms < $max_wait_ms ) {
+
+		// Return as soon as the callback reports a result.
 		$result = $is_ready();
 		if ( null !== $result ) {
 			return $result;
 		}
+
 		usleep( $interval_ms * 1000 );
 		$elapsed_ms += $interval_ms;
 	}
+
+	// Timed out without a result.
 	return null;
 }
