@@ -21,7 +21,7 @@ namespace SalesforceGravityForms;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Define our plugin version.
-define( __NAMESPACE__ . '\VERS', '0.1.0' );
+define( __NAMESPACE__ . '\VERS', '0.0.1' );
 
 // Plugin root file.
 define( __NAMESPACE__ . '\FILE', __FILE__ );
