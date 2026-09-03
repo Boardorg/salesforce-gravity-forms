@@ -25,6 +25,9 @@ const OPTION_CLIENT_ID     = 'sfgf_salesforce_client_id';
 const OPTION_CLIENT_SECRET = 'sfgf_salesforce_client_secret';
 const OPTION_API_VERSION   = 'sfgf_salesforce_api_version';
 
+// wp_options key for the admin-configurable "sponsor field unavailable" message.
+const OPTION_UNAVAILABLE_MESSAGE = 'sfgf_unavailable_message_text';
+
 /**
  * Reads a single configuration value: a defined constant first, then an
  * environment variable, then wp_options.
@@ -90,6 +93,16 @@ function get_api_version() {
 
 	// An empty value should still fall through to the default.
 	return $configured ? $configured : DEFAULT_API_VERSION;
+}
+
+/**
+ * Reads the admin-configured "sponsor field unavailable" message, or '' if
+ * one hasn't been set.
+ *
+ * @return string
+ */
+function get_unavailable_message_override() {
+	return (string) get_option( OPTION_UNAVAILABLE_MESSAGE, '' );
 }
 
 /**

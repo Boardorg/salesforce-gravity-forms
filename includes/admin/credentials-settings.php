@@ -33,6 +33,10 @@ const PAGE_SLUG      = 'sfgf-credentials';
 const TEST_CONNECTION_ACTION = 'sfgf_test_connection';
 const TEST_CONNECTION_NONCE  = 'sfgf_test_connection_nonce';
 
+// HTML id of the (invisible) Test Connection form, so its button can live
+// in the main form's markup while still submitting its own separate form.
+const TEST_CONNECTION_FORM_ID = 'sfgf-test-connection-form';
+
 // Nonce action/name for the "Test Sponsor Query" tool, same reasoning.
 const TEST_QUERY_ACTION = 'sfgf_test_query';
 const TEST_QUERY_NONCE  = 'sfgf_test_query_nonce';
@@ -71,6 +75,7 @@ function register_settings() {
 	add_option( Config\OPTION_CLIENT_ID, '', '', false );
 	add_option( Config\OPTION_CLIENT_SECRET, '', '', false );
 	add_option( Config\OPTION_API_VERSION, Config\DEFAULT_API_VERSION, '', false );
+	add_option( Config\OPTION_UNAVAILABLE_MESSAGE, '', '', false );
 
 	// Register setting for the Salesforce login/base URL.
 	register_setting(
@@ -134,6 +139,28 @@ function register_settings() {
 	add_settings_field( Config\OPTION_CLIENT_ID, __( 'Client ID', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_id_field', PAGE_SLUG, 'sfgf_credentials_main' );
 	add_settings_field( Config\OPTION_CLIENT_SECRET, __( 'Client Secret', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_client_secret_field', PAGE_SLUG, 'sfgf_credentials_main' );
 	add_settings_field( Config\OPTION_API_VERSION, __( 'API Version', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_api_version_field', PAGE_SLUG, 'sfgf_credentials_main' );
+
+	// Register setting for the sponsor-field-unavailable message.
+	register_setting(
+		SETTINGS_GROUP,
+		Config\OPTION_UNAVAILABLE_MESSAGE,
+		array(
+			'type'              => 'string',
+			'description'       => 'Message shown in place of an unavailable sponsor field',
+			'sanitize_callback' => 'sanitize_textarea_field',
+			'default'           => '',
+		)
+	);
+
+	// Add a separate section for this -- it's a Gravity Forms display setting, not a Salesforce credential.
+	add_settings_section(
+		'sfgf_behavior_main',
+		__( 'Sponsor Field Behavior', 'salesforce-gravity-forms' ),
+		__NAMESPACE__ . '\render_behavior_section_description',
+		PAGE_SLUG
+	);
+
+	add_settings_field( Config\OPTION_UNAVAILABLE_MESSAGE, __( 'Unavailable Message', 'salesforce-gravity-forms' ), __NAMESPACE__ . '\render_unavailable_message_field', PAGE_SLUG, 'sfgf_behavior_main' );
 }
 
 /**
@@ -166,6 +193,17 @@ function render_settings_page() {
 	<div class="wrap">
 		<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
+		<?php
+		// An otherwise-empty form for the Test Connection button below --
+		// kept separate so a click never re-saves the settings above. Its
+		// button lives inside the main form's markup via the HTML `form`
+		// attribute, so the two buttons can sit on the same line.
+		?>
+		<form method="post" id="<?php echo esc_attr( TEST_CONNECTION_FORM_ID ); ?>">
+			<?php wp_nonce_field( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE ); ?>
+			<input type="hidden" name="sfgf_test_connection" value="1">
+		</form>
+
 		<form action="options.php" method="post">
 			<?php
 			// Output security fields for the registered setting.
@@ -173,20 +211,15 @@ function render_settings_page() {
 
 			// Output setting sections and their fields.
 			do_settings_sections( PAGE_SLUG );
-
-			// Output save settings button.
-			submit_button( __( 'Save Credentials', 'salesforce-gravity-forms' ) );
 			?>
-		</form>
-
-		<form method="post">
-			<?php
-			// Separate nonce/form so this never accidentally re-saves the
-			// credentials fields above -- it only exercises authenticate().
-			wp_nonce_field( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE );
-			?>
-			<input type="hidden" name="sfgf_test_connection" value="1">
-			<?php submit_button( __( 'Test Connection', 'salesforce-gravity-forms' ), 'secondary' ); ?>
+			<p class="submit">
+				<?php submit_button( __( 'Save Settings', 'salesforce-gravity-forms' ), 'primary', 'submit', false ); ?>
+				<button
+					type="submit"
+					form="<?php echo esc_attr( TEST_CONNECTION_FORM_ID ); ?>"
+					class="button button-secondary"
+				><?php esc_html_e( 'Test Connection', 'salesforce-gravity-forms' ); ?></button>
+			</p>
 		</form>
 
 		<hr>
@@ -465,6 +498,38 @@ function render_api_version_field() {
 		class="regular-text"
 		placeholder="<?php echo esc_attr( Config\DEFAULT_API_VERSION ); ?>"
 	>
+	<?php
+}
+
+/**
+ * Render section description for the Gravity Forms behavior settings.
+ *
+ * @return void
+ */
+function render_behavior_section_description() {
+	echo '<p>' . esc_html__( 'Controls how a sponsor Checkbox field behaves when Salesforce is temporarily unreachable and no stale list is available.', 'salesforce-gravity-forms' ) . '</p>';
+}
+
+/**
+ * Render the sponsor-field-unavailable message field.
+ *
+ * @return void
+ */
+function render_unavailable_message_field() {
+
+	// Get current value.
+	$value = get_option( Config\OPTION_UNAVAILABLE_MESSAGE, '' );
+	?>
+	<textarea
+		name="<?php echo esc_attr( Config\OPTION_UNAVAILABLE_MESSAGE ); ?>"
+		id="<?php echo esc_attr( Config\OPTION_UNAVAILABLE_MESSAGE ); ?>"
+		class="large-text"
+		rows="2"
+		placeholder="<?php esc_attr_e( 'Sponsor list is temporarily unavailable. Please try again shortly.', 'salesforce-gravity-forms' ); ?>"
+	><?php echo esc_textarea( $value ); ?></textarea>
+	<p class="description">
+		<?php esc_html_e( 'Shown in place of the sponsor checkboxes, and as the validation error if the field is required. Leave blank to use the default message above.', 'salesforce-gravity-forms' ); ?>
+	</p>
 	<?php
 }
 

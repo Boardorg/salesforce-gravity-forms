@@ -38,19 +38,13 @@ define( __NAMESPACE__ . '\INCLUDES_PATH', __DIR__ . '/includes' );
 // Slug used to register with Gravity Forms logging and as a cache-key prefix.
 define( __NAMESPACE__ . '\SLUG', 'salesforce-gravity-forms' );
 
-// Minimum PHP version this plugin supports. Kept separate from the "Requires
-// PHP" header so the runtime guard below can produce a friendly notice
-// instead of a fatal error on older hosts.
+// Minimum PHP version this plugin supports.
 define( __NAMESPACE__ . '\MIN_PHP_VERSION', '8.2' );
 
 // Minimum Gravity Forms version this plugin has been checked against.
-// @todo confirm the real production Gravity Forms version (handoff doc
-// question #9) and adjust if the site runs an older release.
 define( __NAMESPACE__ . '\MIN_GRAVITY_FORMS_VERSION', '2.7' );
 
-// Defer file loading until plugins_loaded so Gravity Forms (an activation
-// dependency) has had a chance to load its own classes first. Priority 20
-// runs after Gravity Forms' own default plugins_loaded registration.
+// Defer file loading until plugins_loaded so Gravity Forms can load first.
 add_action( 'plugins_loaded', __NAMESPACE__ . '\sfgf_bootstrap', 20 );
 
 /**
@@ -78,13 +72,12 @@ function sfgf_bootstrap() {
 		add_action( 'admin_notices', __NAMESPACE__ . '\sfgf_old_gravityforms_notice' );
 	}
 
-	// Dependencies satisfied; load the plugin's files.
+	// Dependencies satisfied so load the plugin's files.
 	sfgf_file_load();
 }
 
 /**
- * Requires every file that makes up the plugin. Kept explicit (no
- * autoloading) so the load order is easy to read and trace.
+ * Requires every file that makes up the plugin.
  *
  * @return void
  */
@@ -112,11 +105,18 @@ function sfgf_file_load() {
 	require_once INCLUDES_PATH . '/providers/choice-provider.php';
 	require_once INCLUDES_PATH . '/providers/salesforce-sponsor-provider.php';
 
-	// Admin-only screens and hooks.
+	// Gravity Forms form/field settings.
+	require_once INCLUDES_PATH . '/gravity-forms/form-settings.php';
+	require_once INCLUDES_PATH . '/gravity-forms/field-settings.php';
+
+	// Populates Checkbox fields using the Salesforce sponsors source, backed
+	// by the stable checkbox-input registry.
+	require_once INCLUDES_PATH . '/cache/checkbox-registry.php';
+	require_once INCLUDES_PATH . '/gravity-forms/dynamic-choices.php';
+
+	// Admin-only screens.
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';
-		require_once INCLUDES_PATH . '/gravity-forms/form-settings.php';
-		require_once INCLUDES_PATH . '/gravity-forms/field-settings.php';
 	}
 
 	// Register this plugin with Gravity Forms' logging system now that
@@ -130,6 +130,7 @@ function sfgf_file_load() {
  * @return void
  */
 function sfgf_php_version_notice() {
+
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(
@@ -151,6 +152,7 @@ function sfgf_php_version_notice() {
  * @return void
  */
 function sfgf_missing_gravityforms_notice() {
+
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(
@@ -166,6 +168,7 @@ function sfgf_missing_gravityforms_notice() {
  * @return void
  */
 function sfgf_old_gravityforms_notice() {
+	
 	// Guard: only administrators need to see infrastructure-level notices.
 	if ( ! current_user_can( 'manage_options' ) ) return;
 	printf(

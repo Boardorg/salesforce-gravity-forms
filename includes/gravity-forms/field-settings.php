@@ -3,10 +3,9 @@
  * Per-field "Salesforce Sponsors" choice-source setting.
  *
  * Adds a "Dynamic Choice Source" dropdown to Checkbox fields in the form
- * editor. Setting it to "Salesforce Sponsors" is what will tell the (not
- * yet built) dynamic-choices module to populate that field from
- * ChoiceProvider\get_choices( 'sponsors', $event_code ) instead of its own
- * saved choices.
+ * editor. Setting it to "Salesforce Sponsors" is what tells dynamic-choices.php
+ * to populate that field from ChoiceProvider\get_choices( 'sponsors',
+ * $event_code ) instead of its own saved choices.
  *
  * @package SalesforceGravityForms
  */
