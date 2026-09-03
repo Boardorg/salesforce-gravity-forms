@@ -116,6 +116,7 @@ function sfgf_file_load() {
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';
 		require_once INCLUDES_PATH . '/gravity-forms/form-settings.php';
+		require_once INCLUDES_PATH . '/gravity-forms/field-settings.php';
 	}
 
 	// Register this plugin with Gravity Forms' logging system now that
