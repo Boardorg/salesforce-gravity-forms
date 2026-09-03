@@ -112,11 +112,10 @@ function sfgf_file_load() {
 	require_once INCLUDES_PATH . '/providers/choice-provider.php';
 	require_once INCLUDES_PATH . '/providers/salesforce-sponsor-provider.php';
 
-	// Admin-only credentials settings screen -- only needed on hosts (e.g.
-	// WP Engine's standard managed plans) that provide neither environment
-	// variables nor deploy-time control over wp-config.php.
+	// Admin-only screens and hooks.
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';
+		require_once INCLUDES_PATH . '/gravity-forms/form-settings.php';
 	}
 
 	// Register this plugin with Gravity Forms' logging system now that
