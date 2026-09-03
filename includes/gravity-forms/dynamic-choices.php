@@ -5,10 +5,6 @@
  *
  * Hooked to every context Gravity Forms can render or process a form in.
  *
- * @todo Test a fresh, passthrough-populated page load with no $_POST or
- *       wp-admin entry present. An inactive selected sponsor might not
- *       be detected there. See get_selected_account_ids().
- *
  * @package SalesforceGravityForms
  */
 
@@ -123,7 +119,7 @@ function populate_field( $field, $form_id, $event_code, $entry ) {
 	$include_ids = wp_list_pluck( $live_choices, 'value' );
 
 	// Loop through this entry's already-selected sponsors and add any not already included.
-	foreach ( get_selected_account_ids( $field_id, $registry, $entry ) as $account_id ) {
+	foreach ( get_selected_account_ids( $field, $registry, $entry ) as $account_id ) {
 		if ( ! in_array( $account_id, $include_ids, true ) ) {
 			$include_ids[] = $account_id;
 		}
@@ -160,12 +156,15 @@ function get_cached_choices( $event_code ) {
 /**
  * Finds which Account IDs are already checked for this field.
  *
- * @param int        $field_id Gravity Forms field ID.
+ * @param \GF_Field  $field    The Checkbox field.
  * @param array      $registry Current registry.
  * @param array|null $entry    Entry to check, when one was handed to us directly.
  * @return string[] Selected Account IDs.
  */
-function get_selected_account_ids( $field_id, $registry, $entry ) {
+function get_selected_account_ids( $field, $registry, $entry ) {
+
+	// Get the field ID for registry lookups.
+	$field_id = $field->id;
 
 	// If handed an entry directly (async task processing), return its matches.
 	if ( is_array( $entry ) ) {
@@ -176,6 +175,21 @@ function get_selected_account_ids( $field_id, $registry, $entry ) {
 	$from_post = match_registry_to_values( $field_id, $registry, $_POST, true ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only, no state change.
 	if ( ! empty( $from_post ) ) {
 		return $from_post;
+	}
+
+	// Otherwise, ask Gravity Forms' own dynamic-population API what this
+	// field's value should be.
+	if ( $field->allowsPrepopulate && class_exists( 'GFFormsModel' ) ) {
+		$prepopulated = \GFFormsModel::get_parameter_value( $field->inputName, [], $field );
+		if ( ! empty( $prepopulated ) ) {
+
+			// The value can be a comma-separated string or an array; normalize to an array.
+			$values = is_array( $prepopulated ) ? $prepopulated : explode( ',', $prepopulated );
+			$values = array_map( 'trim', $values );
+
+			// Only ones the registry actually recognizes as Account IDs.
+			return array_values( array_intersect( $values, array_keys( $registry ) ) );
+		}
 	}
 
 	// Otherwise, check a loaded wp-admin entry-edit screen.
