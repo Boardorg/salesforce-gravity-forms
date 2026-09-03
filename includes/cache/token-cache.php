@@ -2,10 +2,8 @@
 /**
  * Persists the Salesforce access token across requests.
  *
- * A WordPress request is a fresh PHP process, so — unlike the existing
- * Node app's module-level `cached` variable, which lives for the process's
- * whole lifetime — this cache has to be an explicit, persistent store.
- * Transients (backed by VIP's persistent object cache) fill that role.
+ * A WordPress request is a fresh PHP process, so this cache has to be
+ * an explicit, persistent store using transients.
  *
  * @package SalesforceGravityForms
  */
@@ -19,28 +17,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // Transient key the cached token bundle is stored under.
 const TRANSIENT_KEY = 'sfgf_sf_token';
 
-// How long a fetched token is trusted before authenticate() fetches a fresh
-// one. Intentionally shorter than the existing app's ~30 minute cache to
-// leave a safety margin under the Connected App session timeout.
+// How long a fetched token is trusted before authenticate() fetches a fresh one.
 const TOKEN_TTL_SECONDS = 25 * MINUTE_IN_SECONDS;
 
 /**
- * Returns the cached token bundle, or null if there is none or it has
- * expired.
+ * Returns the cached token bundle, or null if there is none or it has expired.
  *
  * @return array{access_token: string, instance_url: string, expires_at: int}|null
  */
 function get_cached_token() {
 	$cached = get_transient( TRANSIENT_KEY );
 
-	// get_transient() returns false for a missing/expired transient.
+	// Bail if get_transient() returns false for a missing/expired transient.
 	if ( false === $cached || ! is_array( $cached ) ) {
 		return null;
 	}
 
-	// Belt-and-suspenders: also honor our own expires_at in case the
-	// transient's own expiry and this value ever drift (e.g. after a
-	// persistent-object-cache flush that preserves the DB fallback row).
+	// Also check our own expires_at in case it drifts from the transient's expiration.
 	if ( ! isset( $cached['expires_at'] ) || $cached['expires_at'] <= time() ) {
 		return null;
 	}
@@ -56,19 +49,21 @@ function get_cached_token() {
  * @return void
  */
 function set_cached_token( $access_token, $instance_url ) {
+
+	// Build a bundle with the token, instance URL, and our own expiration timestamp.
 	$bundle = [
 		'access_token' => $access_token,
 		'instance_url' => $instance_url,
 		'expires_at'   => time() + TOKEN_TTL_SECONDS,
 	];
 
+	// Store the bundle in a transient.
 	set_transient( TRANSIENT_KEY, $bundle, TOKEN_TTL_SECONDS );
 }
 
 /**
  * Clears the cached token, forcing the next authenticate() call to fetch a
- * fresh one. Used when Salesforce reports the cached token is no longer
- * valid (INVALID_SESSION_ID).
+ * fresh one.
  *
  * @return void
  */

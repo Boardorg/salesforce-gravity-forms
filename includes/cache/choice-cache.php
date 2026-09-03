@@ -10,20 +10,21 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\Cache\ChoiceCache;
 
+// Set our aliases.
 use SalesforceGravityForms\Config;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Suggested by the handoff doc: 10-15 minutes for the fresh layer, 24 hours
-// for the stale fallback layer.
+// TODO: Do we need multiple cache layers, or is a single layer with a longer TTL sufficient?
+
+// Set 10-15 minutes for the fresh layer, 24 hours for the stale fallback layer.
 const FRESH_TTL_SECONDS = 12 * MINUTE_IN_SECONDS;
 const STALE_TTL_SECONDS = 24 * HOUR_IN_SECONDS;
 
 /**
  * Builds the transient key for one cache layer, keyed by Salesforce
- * environment (so a staging login URL never serves production's cached
- * choices, or vice versa) plus the choice source and event code.
+ * environment plus the choice source and event code.
  *
  * @param string $layer      'fresh' or 'stale'.
  * @param string $source     Choice source identifier (e.g. 'sponsors').
@@ -31,10 +32,12 @@ const STALE_TTL_SECONDS = 24 * HOUR_IN_SECONDS;
  * @return string
  */
 function build_key( $layer, $source, $event_code ) {
+
 	// The login URL uniquely identifies which Salesforce org/environment
 	// (production vs. sandbox) the cached choices came from.
 	$environment = (string) Config\get_login_url();
 
+	// Build a unique transient key for this cache layer, source, and event code.
 	return 'sfgf_choices_' . $layer . '_' . md5( $environment . '|' . $source . '|' . $event_code );
 }
 

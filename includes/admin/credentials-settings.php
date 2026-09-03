@@ -5,9 +5,7 @@
  * Exists specifically for the WP Engine standard managed WordPress plan
  * this plugin runs on in production, where SFTP and phpMyAdmin are the only
  * available channels — see includes/config/config.php's file header and the
- * README's "Configuration" section for why wp_options is used here despite
- * the handoff doc's original "never store these in wp_options" guidance,
- * and what that trade-off costs.
+ * README's "Configuration" section for why wp_options is used here.
  *
  * @package SalesforceGravityForms
  */
@@ -68,11 +66,7 @@ function add_settings_page() {
  */
 function register_settings() {
 
-	// Create each option with autoload disabled if it doesn't exist yet --
-	// these values are only needed on requests that touch a
-	// Salesforce-sourced Gravity Forms field, not on every page load.
-	// add_option() is a no-op when the option already exists, so this never
-	// overwrites a previously saved value.
+	// Create each option with autoload disabled if it doesn't exist yet.
 	add_option( Config\OPTION_LOGIN_URL, '', '', false );
 	add_option( Config\OPTION_CLIENT_ID, '', '', false );
 	add_option( Config\OPTION_CLIENT_SECRET, '', '', false );
@@ -127,7 +121,7 @@ function register_settings() {
 		)
 	);
 
-	// Add the (only, for now) settings section.
+	// Add the settings section.
 	add_settings_section(
 		'sfgf_credentials_main',
 		__( 'Salesforce Connection', 'salesforce-gravity-forms' ),
@@ -154,16 +148,12 @@ function render_settings_page() {
 		return;
 	}
 
-	// Handle a "Test Connection" submission before rendering, so its result
-	// shows up in the same settings_errors() output as a credentials save.
+	// Handle a "Test Connection" submission before rendering.
 	if ( isset( $_POST['sfgf_test_connection'] ) && check_admin_referer( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE ) ) {
 		handle_test_connection();
 	}
 
-	// Handle a "Test Sponsor Query" submission. Unlike the two above, this
-	// one has a result worth rendering as a table, not just a one-line
-	// notice, so its result is captured and handed to a dedicated renderer
-	// instead of going through add_settings_error().
+	// Handle a "Test Sponsor Query" submission.
 	$event_code_value = isset( $_POST['sfgf_test_event_code'] ) ? sanitize_text_field( wp_unslash( $_POST['sfgf_test_event_code'] ) ) : '';
 	$query_test_result = null;
 	if ( isset( $_POST['sfgf_test_query'] ) && check_admin_referer( TEST_QUERY_ACTION, TEST_QUERY_NONCE ) ) {
@@ -232,26 +222,29 @@ function render_settings_page() {
  * @return array{soql: string, raw_count: int, skipped_count: int, choices: array}|\WP_Error
  */
 function run_test_query( $event_code ) {
+
+	// Validate the event code is non-empty.
 	if ( '' === trim( $event_code ) ) {
 		return new \WP_Error( 'sfgf_test_query_missing_event_code', __( 'Enter an event code to test.', 'salesforce-gravity-forms' ) );
 	}
 
-	// Build (and validate) the SOQL first so an invalid event code fails
-	// fast with the same error a real render would produce.
+	// Build (and validate) the SOQL first.
 	$soql = QueryBuilders\build_sponsor_query( $event_code );
 	if ( is_wp_error( $soql ) ) {
 		return $soql;
 	}
 
 	// Live query -- SponsorRecords/Client/Authentication handle pagination,
-	// auth, and the invalid-session retry the same as any other caller.
+	// auth, and the invalid-session retry.
 	$records = SponsorRecords\get_raw_sponsor_records( $event_code );
 	if ( is_wp_error( $records ) ) {
 		return $records;
 	}
 
+	// Normalize the raw records into distinct companies by Account Id.
 	list( $companies, $skipped_count ) = SalesforceSponsorProvider\group_by_account( $records );
 
+	// Return a summary for on-screen display.
 	return [
 		'soql'          => $soql,
 		'raw_count'     => count( $records ),
@@ -263,12 +256,14 @@ function run_test_query( $event_code ) {
 /**
  * Renders the result of run_test_query(): a summary line, a table of the
  * normalized choices (label, Account Id, attendee-row count), and the SOQL
- * used, collapsed behind a <details> so it doesn't dominate the page.
+ * used, collapsed behind a <details> element.
  *
  * @param array|\WP_Error|null $result Return value of run_test_query(), or null if no test has run yet.
  * @return void
  */
 function render_test_query_result( $result ) {
+
+	// If no test has run yet, don't render anything.
 	if ( null === $result ) {
 		return;
 	}
@@ -332,16 +327,16 @@ function render_test_query_result( $result ) {
 
 /**
  * Attempts a Salesforce authentication and records the result as a
- * settings-error notice (success or failure) for settings_errors() to
- * display. Only exercises the OAuth handshake, not a SOQL query -- there's
- * no configured event code yet to query against (that's a per-Gravity
- * Forms-form setting from a later phase).
+ * settings-error notice for settings_errors() to display.
  *
  * @return void
  */
 function handle_test_connection() {
+
+	// Attempt to authenticate with the current credentials.
 	$result = Authentication\authenticate();
 
+	// If it failed, add an error notice with the sanitized error message.
 	if ( is_wp_error( $result ) ) {
 		add_settings_error(
 			SETTINGS_GROUP,
@@ -356,6 +351,7 @@ function handle_test_connection() {
 		return;
 	}
 
+	// If it succeeded, add a success notice with the instance URL.
 	add_settings_error(
 		SETTINGS_GROUP,
 		'sfgf_test_connection',
@@ -493,12 +489,15 @@ function sanitize_login_url( $input ) {
  * @return string
  */
 function sanitize_client_secret( $input ) {
+
+	// Trim and cast to string first.
 	$input = trim( (string) $input );
 
-	// Blank means "unchanged" -- return the existing stored value as-is.
+	// Blank means "unchanged" so return the existing stored value as-is.
 	if ( '' === $input ) {
 		return get_option( Config\OPTION_CLIENT_SECRET, '' );
 	}
 
+	// Otherwise, sanitize and return the new value.
 	return sanitize_text_field( $input );
 }
