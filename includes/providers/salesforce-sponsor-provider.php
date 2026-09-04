@@ -4,9 +4,11 @@
  * companies.
  *
  * The choice value is the Account ID (Delegate__r.AccountId) and the label
- * is the Account name (Delegate__r.Account.Name). Both are kept on purpose:
- * the ID stays the stored submission value, and anything downstream that
- * needs the readable name can use the label.
+ * is the Account name (Delegate__r.Account.Name). The Salesforce Account
+ * object is the sponsor's company, not the attendee or their Contact
+ * record. Both are kept on purpose: the ID stays the stored submission
+ * value, and anything downstream that needs the readable name can use the
+ * label.
  *
  * @package SalesforceGravityForms
  */

@@ -39,7 +39,7 @@ includes/
 │   └── sponsor-records.php         Ties query-builders + client together to fetch raw sponsor rows.
 └── providers/
     ├── choice-provider.php             What a future Gravity Forms layer (or another provider) asks for. Owns the fresh/stale caching.
-    └── salesforce-sponsor-provider.php Turns raw Salesforce rows into a deduplicated choice list ({ value, label, source_id, active, metadata }), keyed by Account ID.
+    └── salesforce-sponsor-provider.php Turns raw Salesforce rows into a deduplicated choice list ({ value, label, source_id, active, metadata }), keyed by Account ID (the sponsor's company record).
 ```
 
 The Gravity Forms layer (phases 4–5, not built yet) should only ever call
