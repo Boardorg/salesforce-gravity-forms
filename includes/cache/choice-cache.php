@@ -16,8 +16,6 @@ use SalesforceGravityForms\Config;
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// TODO: Do we need multiple cache layers, or is a single layer with a longer TTL sufficient?
-
 // Set 10-15 minutes for the fresh layer, 24 hours for the stale fallback layer.
 const FRESH_TTL_SECONDS = 12 * MINUTE_IN_SECONDS;
 const STALE_TTL_SECONDS = 24 * HOUR_IN_SECONDS;

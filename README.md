@@ -4,13 +4,6 @@ Populates Gravity Forms Checkbox fields with the sponsor companies for an
 event, queried directly from Salesforce using OAuth 2.0 Client Credentials
 (no JWT or RSA key needed).
 
-## Status
-
-All phases are built: bootstrap/config, the Salesforce OAuth and query
-client, the sponsor query-builder and choice provider, the per-form/per-field
-Gravity Forms settings, and the stable checkbox registry that keeps sub-input
-IDs fixed as the live sponsor list changes.
-
 ## Configuration
 
 WP Engine (production) doesn't give us environment variables or
