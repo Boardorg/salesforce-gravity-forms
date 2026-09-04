@@ -13,6 +13,10 @@
 // Declare our namespace.
 namespace SalesforceGravityForms\GravityForms\FieldSettings;
 
+// Set our aliases.
+use SalesforceGravityForms as Core;
+use SalesforceGravityForms\Helpers\Templates;
+
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -28,7 +32,7 @@ const SETTINGS_POSITION = 1363;
 
 // Start our engines.
 add_action( 'gform_field_standard_settings', __NAMESPACE__ . '\render_choice_source_setting', 10, 2 );
-add_action( 'gform_editor_js', __NAMESPACE__ . '\render_editor_js' );
+add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\enqueue_editor_assets' );
 
 /**
  * Outputs the Dynamic Choice Source dropdown, at the one position we care about.
@@ -43,43 +47,42 @@ function render_choice_source_setting( $position, $form_id ) {
 	if ( SETTINGS_POSITION !== $position ) {
 		return;
 	}
-	?>
-	<li class="sfgf_choice_source_setting field_setting">
-		<label for="sfgf_choice_source" class="section_label">
-			<?php esc_html_e( 'Dynamic Choice Source', 'salesforce-gravity-forms' ); ?>
-		</label>
-		<select
-			id="sfgf_choice_source"
-			onchange="SetFieldProperty( '<?php echo esc_js( CHOICE_SOURCE_PROPERTY ); ?>', jQuery( this ).val() ); RefreshSelectedFieldPreview();"
-		>
-			<option value=""><?php esc_html_e( 'None', 'salesforce-gravity-forms' ); ?></option>
-			<option value="<?php echo esc_attr( SPONSORS_SOURCE_VALUE ); ?>"><?php esc_html_e( 'Salesforce Sponsors', 'salesforce-gravity-forms' ); ?></option>
-		</select>
-		<p class="description">
-			<?php esc_html_e( 'Populates this field\'s choices from Salesforce sponsor companies for the event code set in Form Settings, instead of the choices below.', 'salesforce-gravity-forms' ); ?>
-		</p>
-	</li>
-	<?php
+
+	Templates\render(
+		'gravity-forms/choice-source-setting.php',
+		[
+			'property_name'  => CHOICE_SOURCE_PROPERTY,
+			'sponsors_value' => SPONSORS_SOURCE_VALUE,
+		]
+	);
 }
 
 /**
- * Outputs the inline JS that shows this setting only for Checkbox fields
- * and keeps the dropdown in sync with whichever field is selected.
+ * Enqueues the JS that shows the choice-source setting only for Checkbox
+ * fields and keeps its dropdown in sync with whichever field is selected --
+ * only on the form editor screen, where that setting actually appears.
  *
  * @return void
  */
-function render_editor_js() {
-	?>
-	<script>
-		// Show this setting only for Checkbox fields.
-		if ( fieldSettings.checkbox ) {
-			fieldSettings.checkbox += ', .sfgf_choice_source_setting';
-		}
+function enqueue_editor_assets() {
 
-		// Populate the dropdown whenever a field is selected.
-		jQuery( document ).on( 'gform_load_field_settings', function ( event, field ) {
-			jQuery( '#sfgf_choice_source' ).val( field[ '<?php echo esc_js( CHOICE_SOURCE_PROPERTY ); ?>' ] || '' );
-		} );
-	</script>
-	<?php
+	// Only the form editor screen has the field settings this JS targets.
+	if ( ! class_exists( 'GFForms' ) || 'form_editor' !== \GFForms::get_page() ) {
+		return;
+	}
+
+	wp_enqueue_script(
+		'sfgf-field-settings-editor',
+		Core\URL . 'assets/js/field-settings-editor.js',
+		[ 'jquery' ],
+		Core\VERS,
+		true
+	);
+
+	// Pass the field-meta property name the script reads and writes.
+	wp_localize_script(
+		'sfgf-field-settings-editor',
+		'sfgfFieldSettings',
+		[ 'choiceSourceProperty' => CHOICE_SOURCE_PROPERTY ]
+	);
 }

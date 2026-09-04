@@ -3,7 +3,7 @@
  * Plugin Name:       Salesforce Gravity Forms
  * Plugin URI:        https://github.com/Boardorg/salesforce-gravity-forms
  * Description:       Populates Gravity Forms Checkbox fields with sponsor companies queried directly from Salesforce.
- * Version:           0.0.1
+ * Version:           0.1.0
  * Requires PHP:      8.2
  * Requires at least: 6.5
  * Author:            Peter Wiley
@@ -34,6 +34,9 @@ define( __NAMESPACE__ . '\URL', plugin_dir_url( __FILE__ ) );
 
 // Set our includes path constant.
 define( __NAMESPACE__ . '\INCLUDES_PATH', __DIR__ . '/includes' );
+
+// Set our templates path constant.
+define( __NAMESPACE__ . '\TEMPLATES_PATH', __DIR__ . '/templates' );
 
 // Slug used to register with Gravity Forms logging and as a cache-key prefix.
 define( __NAMESPACE__ . '\SLUG', 'salesforce-gravity-forms' );
@@ -86,8 +89,10 @@ function sfgf_file_load() {
 	// Configuration readers for the server-side Salesforce credentials.
 	require_once INCLUDES_PATH . '/config/config.php';
 
-	// Shared logging and cache-locking helpers used by every other module.
+	// Shared logging, cache-locking, and template-loading helpers used by
+	// every other module.
 	require_once INCLUDES_PATH . '/helpers/utilities.php';
+	require_once INCLUDES_PATH . '/helpers/template.php';
 
 	// Persisted caches: the Salesforce access token and the normalized choice lists.
 	require_once INCLUDES_PATH . '/cache/token-cache.php';

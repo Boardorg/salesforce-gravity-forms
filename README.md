@@ -20,7 +20,9 @@ again after saving), and the option isn't autoloaded.
 includes/
 ├── config/config.php               Reads credentials from a constant, env var, or wp_options; returns an error if any are missing.
 ├── admin/credentials-settings.php  wp-admin screen for the wp_options fallback (Settings → Salesforce).
-├── helpers/utilities.php           Gravity Forms–aware logging (falls back to error_log) + cache-lock helpers.
+├── helpers/
+│   ├── utilities.php                Gravity Forms–aware logging (falls back to error_log) + cache-lock helpers.
+│   └── template.php                 Includes a template file, passing it a set of variables.
 ├── cache/
 │   ├── token-cache.php             Persists the Salesforce access token across requests (transients).
 │   ├── choice-cache.php            Fresh (~12 min) + stale (24h) cache for the choice lists.
@@ -37,4 +39,7 @@ includes/
     ├── form-settings.php   Adds the "Salesforce Event Code" field to a form's settings.
     ├── field-settings.php  Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
     └── dynamic-choices.php Populates a field's choices/inputs with the live sponsor list, via the stable registry.
+
+templates/    HTML for everything above -- one file per render_*() function, loaded via helpers/template.php.
+assets/js/    JS for the form editor, enqueued by field-settings.php instead of printed inline.
 ```

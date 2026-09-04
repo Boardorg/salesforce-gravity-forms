@@ -19,6 +19,7 @@ use SalesforceGravityForms\Salesforce\Authentication;
 use SalesforceGravityForms\Salesforce\QueryBuilders;
 use SalesforceGravityForms\Salesforce\SponsorRecords;
 use SalesforceGravityForms\Providers\SalesforceSponsorProvider;
+use SalesforceGravityForms\Helpers\Templates;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -189,60 +190,22 @@ function render_settings_page() {
 
 	// Add error/update messages.
 	settings_errors( SETTINGS_GROUP );
-	?>
-	<div class="wrap">
-		<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
-		<?php
-		// An otherwise-empty form for the Test Connection button below --
-		// kept separate so a click never re-saves the settings above. Its
-		// button lives inside the main form's markup via the HTML `form`
-		// attribute, so the two buttons can sit on the same line.
-		?>
-		<form method="post" id="<?php echo esc_attr( TEST_CONNECTION_FORM_ID ); ?>">
-			<?php wp_nonce_field( TEST_CONNECTION_ACTION, TEST_CONNECTION_NONCE ); ?>
-			<input type="hidden" name="sfgf_test_connection" value="1">
-		</form>
-
-		<form action="options.php" method="post">
-			<?php
-			// Output security fields for the registered setting.
-			settings_fields( SETTINGS_GROUP );
-
-			// Output setting sections and their fields.
-			do_settings_sections( PAGE_SLUG );
-			?>
-			<p class="submit">
-				<?php submit_button( __( 'Save Settings', 'salesforce-gravity-forms' ), 'primary', 'submit', false ); ?>
-				<button
-					type="submit"
-					form="<?php echo esc_attr( TEST_CONNECTION_FORM_ID ); ?>"
-					class="button button-secondary"
-				><?php esc_html_e( 'Test Connection', 'salesforce-gravity-forms' ); ?></button>
-			</p>
-		</form>
-
-		<hr>
-
-		<h2><?php esc_html_e( 'Test Sponsor Query', 'salesforce-gravity-forms' ); ?></h2>
-		<p class="description">
-			<?php esc_html_e( 'Runs the actual sponsor query and normalization code against live Salesforce data for one event code -- nothing is cached or saved. Use a real, known Conference code from your Salesforce org.', 'salesforce-gravity-forms' ); ?>
-		</p>
-		<form method="post">
-			<?php wp_nonce_field( TEST_QUERY_ACTION, TEST_QUERY_NONCE ); ?>
-			<input
-				type="text"
-				name="sfgf_test_event_code"
-				value="<?php echo esc_attr( $event_code_value ); ?>"
-				class="regular-text"
-				placeholder="e.g. NAMLS2026"
-			>
-			<input type="hidden" name="sfgf_test_query" value="1">
-			<?php submit_button( __( 'Run Test Query', 'salesforce-gravity-forms' ), 'secondary' ); ?>
-		</form>
-		<?php render_test_query_result( $query_test_result ); ?>
-	</div>
-	<?php
+	// Render the page.
+	Templates\render(
+		'admin/settings-page.php',
+		[
+			'settings_group'          => SETTINGS_GROUP,
+			'page_slug'               => PAGE_SLUG,
+			'test_connection_form_id' => TEST_CONNECTION_FORM_ID,
+			'test_connection_action'  => TEST_CONNECTION_ACTION,
+			'test_connection_nonce'   => TEST_CONNECTION_NONCE,
+			'test_query_action'       => TEST_QUERY_ACTION,
+			'test_query_nonce'        => TEST_QUERY_NONCE,
+			'event_code_value'        => $event_code_value,
+			'query_test_result'       => $query_test_result,
+		]
+	);
 }
 
 /**
@@ -300,62 +263,8 @@ function render_test_query_result( $result ) {
 	if ( null === $result ) {
 		return;
 	}
-	?>
-	<div style="margin-top: 1em; max-width: 900px;">
-		<?php if ( is_wp_error( $result ) ) : ?>
-			<div class="notice notice-error inline"><p><?php echo esc_html( $result->get_error_message() ); ?></p></div>
-			<?php return; ?>
-		<?php endif; ?>
 
-		<div class="notice notice-success inline">
-			<p>
-				<?php
-				printf(
-					/* translators: 1: raw qualifying row count, 2: distinct sponsor company count after deduplication. */
-					esc_html__( '%1$d qualifying Attendee__c row(s) returned, %2$d distinct sponsor compan(y/ies) after deduplication by Account Id.', 'salesforce-gravity-forms' ),
-					(int) $result['raw_count'],
-					count( $result['choices'] )
-				);
-				?>
-				<?php if ( $result['skipped_count'] > 0 ) : ?>
-					<?php
-					printf(
-						/* translators: %d: count of rows skipped for missing Account Id/Name. */
-						esc_html__( ' %d row(s) skipped for missing Account Id or Account Name.', 'salesforce-gravity-forms' ),
-						(int) $result['skipped_count']
-					);
-					?>
-				<?php endif; ?>
-			</p>
-		</div>
-
-		<?php if ( ! empty( $result['choices'] ) ) : ?>
-			<table class="widefat striped">
-				<thead>
-					<tr>
-						<th><?php esc_html_e( 'Label (Account Name)', 'salesforce-gravity-forms' ); ?></th>
-						<th><?php esc_html_e( 'Value (Account Id)', 'salesforce-gravity-forms' ); ?></th>
-						<th><?php esc_html_e( 'Attendee Rows', 'salesforce-gravity-forms' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $result['choices'] as $choice ) : ?>
-						<tr>
-							<td><?php echo esc_html( $choice['label'] ); ?></td>
-							<td><code><?php echo esc_html( $choice['value'] ); ?></code></td>
-							<td><?php echo (int) count( $choice['metadata']['attendee_ids'] ); ?></td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
-
-		<details style="margin-top: 1em;">
-			<summary><?php esc_html_e( 'SOQL used', 'salesforce-gravity-forms' ); ?></summary>
-			<pre style="white-space: pre-wrap; background: #f6f7f7; padding: 1em;"><?php echo esc_html( $result['soql'] ); ?></pre>
-		</details>
-	</div>
-	<?php
+	Templates\render( 'admin/test-query-result.php', [ 'result' => $result ] );
 }
 
 /**
@@ -413,22 +322,13 @@ function render_main_section_description() {
  * @return void
  */
 function render_login_url_field() {
-
-	// Get current value.
-	$value = get_option( Config\OPTION_LOGIN_URL, '' );
-	?>
-	<input
-		type="url"
-		name="<?php echo esc_attr( Config\OPTION_LOGIN_URL ); ?>"
-		id="<?php echo esc_attr( Config\OPTION_LOGIN_URL ); ?>"
-		value="<?php echo esc_attr( $value ); ?>"
-		class="regular-text"
-		placeholder="https://yourorg.my.salesforce.com"
-	>
-	<p class="description">
-		Environment-specific — point a local/staging WordPress environment at a Salesforce sandbox login URL.
-	</p>
-	<?php
+	Templates\render(
+		'admin/fields/login-url-field.php',
+		[
+			'option_name' => Config\OPTION_LOGIN_URL,
+			'value'       => get_option( Config\OPTION_LOGIN_URL, '' ),
+		]
+	);
 }
 
 /**
@@ -437,18 +337,13 @@ function render_login_url_field() {
  * @return void
  */
 function render_client_id_field() {
-
-	// Get current value.
-	$value = get_option( Config\OPTION_CLIENT_ID, '' );
-	?>
-	<input
-		type="text"
-		name="<?php echo esc_attr( Config\OPTION_CLIENT_ID ); ?>"
-		id="<?php echo esc_attr( Config\OPTION_CLIENT_ID ); ?>"
-		value="<?php echo esc_attr( $value ); ?>"
-		class="regular-text"
-	>
-	<?php
+	Templates\render(
+		'admin/fields/client-id-field.php',
+		[
+			'option_name' => Config\OPTION_CLIENT_ID,
+			'value'       => get_option( Config\OPTION_CLIENT_ID, '' ),
+		]
+	);
 }
 
 /**
@@ -458,26 +353,14 @@ function render_client_id_field() {
  * @return void
  */
 function render_client_secret_field() {
-
-	// Only check whether a secret is saved -- never read its value into the page.
-	$has_secret = '' !== get_option( Config\OPTION_CLIENT_SECRET, '' );
-	?>
-	<input
-		type="password"
-		name="<?php echo esc_attr( Config\OPTION_CLIENT_SECRET ); ?>"
-		id="<?php echo esc_attr( Config\OPTION_CLIENT_SECRET ); ?>"
-		value=""
-		class="regular-text"
-		autocomplete="new-password"
-	>
-	<p class="description">
-		<?php
-		echo $has_secret
-			? esc_html__( 'A client secret is already saved. Leave blank to keep it unchanged.', 'salesforce-gravity-forms' )
-			: esc_html__( 'No client secret saved yet.', 'salesforce-gravity-forms' );
-		?>
-	</p>
-	<?php
+	Templates\render(
+		'admin/fields/client-secret-field.php',
+		[
+			'option_name' => Config\OPTION_CLIENT_SECRET,
+			// Only check whether a secret is saved -- never read its value into the page.
+			'has_secret'  => '' !== get_option( Config\OPTION_CLIENT_SECRET, '' ),
+		]
+	);
 }
 
 /**
@@ -486,19 +369,14 @@ function render_client_secret_field() {
  * @return void
  */
 function render_api_version_field() {
-
-	// Get current value.
-	$value = get_option( Config\OPTION_API_VERSION, Config\DEFAULT_API_VERSION );
-	?>
-	<input
-		type="text"
-		name="<?php echo esc_attr( Config\OPTION_API_VERSION ); ?>"
-		id="<?php echo esc_attr( Config\OPTION_API_VERSION ); ?>"
-		value="<?php echo esc_attr( $value ); ?>"
-		class="regular-text"
-		placeholder="<?php echo esc_attr( Config\DEFAULT_API_VERSION ); ?>"
-	>
-	<?php
+	Templates\render(
+		'admin/fields/api-version-field.php',
+		[
+			'option_name' => Config\OPTION_API_VERSION,
+			'value'       => get_option( Config\OPTION_API_VERSION, Config\DEFAULT_API_VERSION ),
+			'default'     => Config\DEFAULT_API_VERSION,
+		]
+	);
 }
 
 /**
@@ -516,21 +394,13 @@ function render_behavior_section_description() {
  * @return void
  */
 function render_unavailable_message_field() {
-
-	// Get current value.
-	$value = get_option( Config\OPTION_UNAVAILABLE_MESSAGE, '' );
-	?>
-	<textarea
-		name="<?php echo esc_attr( Config\OPTION_UNAVAILABLE_MESSAGE ); ?>"
-		id="<?php echo esc_attr( Config\OPTION_UNAVAILABLE_MESSAGE ); ?>"
-		class="large-text"
-		rows="2"
-		placeholder="<?php esc_attr_e( 'Sponsor list is temporarily unavailable. Please try again shortly.', 'salesforce-gravity-forms' ); ?>"
-	><?php echo esc_textarea( $value ); ?></textarea>
-	<p class="description">
-		<?php esc_html_e( 'Shown in place of the sponsor checkboxes, and as the validation error if the field is required. Leave blank to use the default message above.', 'salesforce-gravity-forms' ); ?>
-	</p>
-	<?php
+	Templates\render(
+		'admin/fields/unavailable-message-field.php',
+		[
+			'option_name' => Config\OPTION_UNAVAILABLE_MESSAGE,
+			'value'       => get_option( Config\OPTION_UNAVAILABLE_MESSAGE, '' ),
+		]
+	);
 }
 
 /**
