@@ -103,7 +103,9 @@ function common_where( $safe_event_code ) {
 
 /**
  * Builds the full sponsor WHERE clause: the shared filters plus the
- * RecordType/StageName conditions that define a sponsor.
+ * RecordType/StageName conditions that define a sponsor. Only sponsors
+ * whose package includes meetings (the Opportunity's "Meetings?"
+ * checkbox) are returned.
  *
  * @param string $safe_event_code Already-validated and SOQL-escaped event code.
  * @return string
@@ -117,6 +119,7 @@ function sponsor_where( $safe_event_code ) {
 			common_where( $safe_event_code ),
 			"Registration__r.RecordType.Name = 'Sponsor'",
 			"Registration__r.StageName IN ('Closed-Won', 'Registered')",
+			'Registration__r.Meeting__c = TRUE',
 		]
 	);
 }
