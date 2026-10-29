@@ -25,7 +25,7 @@ includes/
 │   └── template.php                 Includes a template file, passing it a set of variables.
 ├── cache/
 │   ├── token-cache.php             Persists the Salesforce access token across requests (transients).
-│   ├── choice-cache.php            Fresh (~12 min) + stale (24h) cache for the choice lists.
+│   ├── choice-cache.php            Fresh (~12 min) + stale (24h) cache for the choice lists. Cleared from Settings → Salesforce.
 │   └── checkbox-registry.php       Keeps each sponsor's checkbox sub-input ID stable across form renders.
 ├── salesforce/
 │   ├── authentication.php          OAuth 2.0 Client Credentials; caches the token; stampede lock.

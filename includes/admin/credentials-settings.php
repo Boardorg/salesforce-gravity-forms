@@ -15,6 +15,7 @@ namespace SalesforceGravityForms\Admin\CredentialsSettings;
 
 // Set our aliases.
 use SalesforceGravityForms\Config;
+use SalesforceGravityForms\Cache\ChoiceCache;
 use SalesforceGravityForms\Salesforce\Authentication;
 use SalesforceGravityForms\Salesforce\QueryBuilders;
 use SalesforceGravityForms\Salesforce\SponsorRecords;
@@ -41,6 +42,10 @@ const TEST_CONNECTION_FORM_ID = 'sfgf-test-connection-form';
 // Nonce action/name for the "Test Sponsor Query" tool, same reasoning.
 const TEST_QUERY_ACTION = 'sfgf_test_query';
 const TEST_QUERY_NONCE  = 'sfgf_test_query_nonce';
+
+// Nonce action/name for the "Clear Sponsor Cache" button, same reasoning.
+const CLEAR_CACHE_ACTION = 'sfgf_clear_cache';
+const CLEAR_CACHE_NONCE  = 'sfgf_clear_cache_nonce';
 
 // Start our engines.
 add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
@@ -181,6 +186,11 @@ function render_settings_page() {
 		handle_test_connection();
 	}
 
+	// Handle a "Clear Sponsor Cache" submission.
+	if ( isset( $_POST['sfgf_clear_cache'] ) && check_admin_referer( CLEAR_CACHE_ACTION, CLEAR_CACHE_NONCE ) ) {
+		handle_clear_cache();
+	}
+
 	// Handle a "Test Sponsor Query" submission.
 	$event_code_value = isset( $_POST['sfgf_test_event_code'] ) ? sanitize_text_field( wp_unslash( $_POST['sfgf_test_event_code'] ) ) : '';
 	$query_test_result = null;
@@ -202,6 +212,8 @@ function render_settings_page() {
 			'test_connection_nonce'   => TEST_CONNECTION_NONCE,
 			'test_query_action'       => TEST_QUERY_ACTION,
 			'test_query_nonce'        => TEST_QUERY_NONCE,
+			'clear_cache_action'      => CLEAR_CACHE_ACTION,
+			'clear_cache_nonce'       => CLEAR_CACHE_NONCE,
 			'event_code_value'        => $event_code_value,
 			'query_test_result'       => $query_test_result,
 		]
@@ -302,6 +314,26 @@ function handle_test_connection() {
 			__( 'Connected successfully. Instance URL: %s', 'salesforce-gravity-forms' ),
 			$result['instance_url']
 		),
+		'success'
+	);
+}
+
+/**
+ * Clears every cached sponsor list and records a success notice for
+ * settings_errors() to display.
+ *
+ * @return void
+ */
+function handle_clear_cache() {
+
+	// Invalidate every cached choice list.
+	ChoiceCache\clear_all();
+
+	// Add a success notice.
+	add_settings_error(
+		SETTINGS_GROUP,
+		'sfgf_clear_cache',
+		__( 'Sponsor cache cleared. Each form will load a fresh list from Salesforce the next time it is viewed.', 'salesforce-gravity-forms' ),
 		'success'
 	);
 }

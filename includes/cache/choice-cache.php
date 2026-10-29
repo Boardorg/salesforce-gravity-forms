@@ -20,9 +20,35 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 const FRESH_TTL_SECONDS = 12 * MINUTE_IN_SECONDS;
 const STALE_TTL_SECONDS = 24 * HOUR_IN_SECONDS;
 
+// Option holding the cache generation. It's part of every transient key, so
+// bumping it orphans every cached list at once (the old transients just
+// expire on their own). Keys are md5-hashed, so they can't be enumerated and
+// deleted individually -- this works the same with or without an object cache.
+const GENERATION_OPTION = 'sfgf_choices_generation';
+
+/**
+ * Returns the current cache generation.
+ *
+ * @return int
+ */
+function get_generation() {
+	return (int) get_option( GENERATION_OPTION, 0 );
+}
+
+/**
+ * Invalidates every cached choice list -- fresh and stale, for every source
+ * and event code -- by bumping the cache generation. The next render of each
+ * form queries Salesforce live.
+ *
+ * @return void
+ */
+function clear_all() {
+	update_option( GENERATION_OPTION, get_generation() + 1, false );
+}
+
 /**
  * Builds the transient key for one cache layer, keyed by Salesforce
- * environment plus the choice source and event code.
+ * environment and cache generation plus the choice source and event code.
  *
  * @param string $layer      'fresh' or 'stale'.
  * @param string $source     Choice source identifier (e.g. 'sponsors').
@@ -36,7 +62,7 @@ function build_key( $layer, $source, $event_code ) {
 	$environment = (string) Config\get_login_url();
 
 	// Build a unique transient key for this cache layer, source, and event code.
-	return 'sfgf_choices_' . $layer . '_' . md5( $environment . '|' . $source . '|' . $event_code );
+	return 'sfgf_choices_' . $layer . '_' . md5( $environment . '|' . get_generation() . '|' . $source . '|' . $event_code );
 }
 
 /**

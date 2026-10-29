@@ -11,6 +11,8 @@
  * @var string               $test_connection_nonce    Nonce field name for the Test Connection form.
  * @var string               $test_query_action        Nonce action for the Test Sponsor Query form.
  * @var string               $test_query_nonce         Nonce field name for the Test Sponsor Query form.
+ * @var string               $clear_cache_action       Nonce action for the Clear Sponsor Cache form.
+ * @var string               $clear_cache_nonce        Nonce field name for the Clear Sponsor Cache form.
  * @var string               $event_code_value          Event code entered in the Test Sponsor Query form.
  * @var array|\WP_Error|null $query_test_result         Result of the Test Sponsor Query, or null if not run yet.
  */
@@ -69,4 +71,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 		<?php submit_button( __( 'Run Test Query', 'salesforce-gravity-forms' ), 'secondary' ); ?>
 	</form>
 	<?php \SalesforceGravityForms\Admin\CredentialsSettings\render_test_query_result( $query_test_result ); ?>
+
+	<hr>
+
+	<h2><?php esc_html_e( 'Clear Sponsor Cache', 'salesforce-gravity-forms' ); ?></h2>
+	<p class="description">
+		<?php esc_html_e( 'Sponsor lists are cached for about 12 minutes, plus a 24-hour backup copy used only when Salesforce is unreachable. Clearing removes both for every event, so each form loads a fresh list from Salesforce the next time it is viewed. If Salesforce is down right after clearing, forms will show the unavailable message until it is back.', 'salesforce-gravity-forms' ); ?>
+	</p>
+	<form method="post">
+		<?php wp_nonce_field( $clear_cache_action, $clear_cache_nonce ); ?>
+		<input type="hidden" name="sfgf_clear_cache" value="1">
+		<?php submit_button( __( 'Clear Sponsor Cache', 'salesforce-gravity-forms' ), 'secondary' ); ?>
+	</form>
 </div>
