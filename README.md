@@ -36,11 +36,39 @@ includes/
 │   ├── choice-provider.php             What the Gravity Forms layer (or another provider) asks for. Owns the fresh/stale caching.
 │   └── salesforce-sponsor-provider.php Turns raw Salesforce rows into a deduplicated choice list ({ value, label, source_id, active, metadata }), keyed by Account ID (the sponsor's company record).
 └── gravity-forms/
-    ├── form-settings.php   Adds the "Salesforce Event Code" field to a form's settings.
-    ├── field-settings.php  Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
-    ├── dynamic-choices.php Populates a field's choices/inputs with the live sponsor list, via the stable registry.
-    └── key-sanitizer.php   Strips stray characters from the Networking Profile Key, on save and when sent to Salesforce.
+    ├── form-settings.php          Adds the "Salesforce Event Code" field to a form's settings.
+    ├── field-settings.php         Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
+    ├── dynamic-choices.php        Populates a field's choices/inputs with the live sponsor list, via the stable registry.
+    ├── key-sanitizer.php          Strips stray characters from the Networking Profile Key, on save and when sent to Salesforce.
+    └── resend-to-salesforce.php   Adds a "Resend to Salesforce" bulk action to the entry list, for entries the Salesforce add-on failed to send.
 
 templates/    HTML for everything above -- one file per render_*() function, loaded via helpers/template.php.
 assets/js/    JS for the form editor, enqueued by field-settings.php instead of printed inline.
 ```
+
+## Resending entries that didn't reach Salesforce
+
+The Gravity Forms Salesforce add-on sends each entry once, when it's submitted.
+If Salesforce rejects it (a value too long for its field, a key that matches no
+attendee, an outage) the add-on records the failure in the entry's notes and
+never tries again.
+
+To resend: **Forms → Entries**, tick the entries, choose **Resend to
+Salesforce**, and click Apply. The action only appears on forms that have an
+active Salesforce feed, for users who can edit entries.
+
+It queues the add-on's feed again. The add-on sends in the background, so each
+entry's notes show the result ("Updated … object" or the new error) within a
+minute. Every entry it queues also gets a "Queued to resend to Salesforce."
+note.
+
+It skips an entry, and says why on screen, when resending could do harm:
+
+- The add-on already sent it successfully.
+- It's in the spam or trash.
+- It has no usable Networking Profile Key, so Salesforce couldn't match an attendee.
+- A newer entry exists for the same attendee. Resending the older one would overwrite the newer answers in Salesforce.
+
+Up to 100 entries at a time. Fix whatever made Salesforce reject the entry first
+(for example, widen a Salesforce field that was too short), or it will just fail
+again.
