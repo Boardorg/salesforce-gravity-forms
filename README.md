@@ -38,7 +38,8 @@ includes/
 └── gravity-forms/
     ├── form-settings.php   Adds the "Salesforce Event Code" field to a form's settings.
     ├── field-settings.php  Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
-    └── dynamic-choices.php Populates a field's choices/inputs with the live sponsor list, via the stable registry.
+    ├── dynamic-choices.php Populates a field's choices/inputs with the live sponsor list, via the stable registry.
+    └── key-sanitizer.php   Strips stray characters from the Networking Profile Key, on save and when sent to Salesforce.
 
 templates/    HTML for everything above -- one file per render_*() function, loaded via helpers/template.php.
 assets/js/    JS for the form editor, enqueued by field-settings.php instead of printed inline.
