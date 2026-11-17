@@ -120,6 +120,10 @@ function sfgf_file_load() {
 	require_once INCLUDES_PATH . '/cache/checkbox-registry.php';
 	require_once INCLUDES_PATH . '/gravity-forms/dynamic-choices.php';
 
+	// Keeps each sponsor box named, ticked and validated by its registry
+	// number, and fills it from the saved entry on the Edit URL.
+	require_once INCLUDES_PATH . '/gravity-forms/sponsor-field-state.php';
+
 	// Admin-only screens and tools.
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';

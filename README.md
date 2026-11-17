@@ -39,12 +39,40 @@ includes/
     ├── form-settings.php          Adds the "Salesforce Event Code" field to a form's settings.
     ├── field-settings.php         Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
     ├── dynamic-choices.php        Populates a field's choices/inputs with the live sponsor list, via the stable registry.
+    ├── sponsor-field-state.php    Names, ticks and validates each sponsor box by its registry number; fills the Edit URL from the saved entry.
     ├── key-sanitizer.php          Strips stray characters from the Networking Profile Key, on save and when sent to Salesforce.
     └── resend-to-salesforce.php   Adds a "Resend to Salesforce" bulk action to the entry list, for entries the Salesforce add-on failed to send.
 
 templates/    HTML for everything above -- one file per render_*() function, loaded via helpers/template.php.
 assets/js/    JS for the form editor, enqueued by field-settings.php instead of printed inline.
 ```
+
+## How the sponsor boxes stay tied to the right sponsor
+
+Gravity Forms numbers a Checkbox field's boxes by position (the first box is
+`39.1`, the second `39.2`...) when it draws them. The registry gives each
+sponsor a permanent number instead (`39.5`, `39.51`, `39.8`...) so a sponsor keeps
+its number as the live list changes. The two only match while the list is
+exactly what it was the first time it was fetched, so `sponsor-field-state.php`
+puts everything under the registry number:
+
+- Each box is named and ticked by its registry number, so what a visitor posts
+  is read back from the same place, and boxes stay ticked when the form is
+  drawn again (Next / Previous, a validation error, or the Networking Profile
+  Form Edit URL).
+- Each posted value must be the Account Id of the sponsor it was posted for.
+  Gravity Forms' own choice check (`validateState`) is switched off for these
+  fields, in `dynamic-choices.php`, because it numbers by position too.
+- Easy Passthrough is handed the saved picks straight from the saved entry
+  (`gpep_field_values`). Left alone it reads the entry through the form as
+  stored in the database, which holds an old copy of the sponsor list, so it
+  only finds picks saved under a number that old copy knows.
+
+Entries saved before this change may hold a pick under a different number than
+its own sponsor's, and some picks may never have been saved. The Edit URL reads
+the Account Ids without regard to the number, so it ticks whatever the entry
+holds. The Salesforce add-on and Resend read through the live inputs, exactly as
+before.
 
 ## Resending entries that didn't reach Salesforce
 

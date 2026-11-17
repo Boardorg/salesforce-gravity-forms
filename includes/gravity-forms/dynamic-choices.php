@@ -101,6 +101,10 @@ function populate_field( $field, $form_id, $event_code ) {
 	// Set the field object's choices and inputs to the ones we built.
 	$field->choices = $choices;
 	$field->inputs  = $inputs;
+
+	// Gravity Forms' own choice check numbers boxes by position, not by the registry,
+	// so it would reject good values. sponsor-field-state.php checks each value instead.
+	$field->validateState = false;
 }
 
 /**
