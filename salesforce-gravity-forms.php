@@ -124,6 +124,10 @@ function sfgf_file_load() {
 	// number, and fills it from the saved entry on the Edit URL.
 	require_once INCLUDES_PATH . '/gravity-forms/sponsor-field-state.php';
 
+	// Swaps the form's safe choice values for their visible labels just before
+	// the Salesforce add-on sends an entry.
+	require_once INCLUDES_PATH . '/gravity-forms/choice-labels.php';
+
 	// Admin-only screens and tools.
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';

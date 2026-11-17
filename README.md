@@ -40,6 +40,7 @@ includes/
     ├── field-settings.php         Adds the "Dynamic Choice Source" dropdown to a Checkbox field's settings.
     ├── dynamic-choices.php        Populates a field's choices/inputs with the live sponsor list, via the stable registry.
     ├── sponsor-field-state.php    Names, ticks and validates each sponsor box by its registry number; fills the Edit URL from the saved entry.
+    ├── choice-labels.php          Swaps the form's safe choice values for their visible labels just before the Salesforce add-on sends an entry.
     ├── key-sanitizer.php          Strips stray characters from the Networking Profile Key, on save and when sent to Salesforce.
     └── resend-to-salesforce.php   Adds a "Resend to Salesforce" bulk action to the entry list, for entries the Salesforce add-on failed to send.
 
@@ -73,6 +74,30 @@ its own sponsor's, and some picks may never have been saved. The Edit URL reads
 the Account Ids without regard to the number, so it ticks whatever the entry
 holds. The Salesforce add-on and Resend read through the live inputs, exactly as
 before.
+
+## Sending choice labels to Salesforce
+
+Some Networking Profile questions store a safe value for each choice, such as
+`current_focus_financial_planning`, instead of the text the visitor sees. The
+Salesforce add-on turns every comma in a list of picks into a semicolon, which
+would cut a label like "Data, Analytics" in two, and a safe value has no commas
+to cut. Salesforce's picklists only accept the visible labels, so
+`choice-labels.php` swaps each safe value back for its label just before the
+add-on sends the entry:
+
+- The fields to swap come from the Salesforce feed's field mapping, so no form
+  or field IDs are listed anywhere. It runs for every feed on every form, and
+  for entries sent again with Resend to Salesforce.
+- Only a choice whose value starts with one of the prefixes in
+  `SAFE_VALUE_PREFIXES` is swapped. Anything else (an "Other" answer, the
+  sponsors' Account Ids, plain text) is sent as it is. A question whose safe
+  values start with a new prefix needs that prefix added to the list.
+- The picks are joined with semicolons, which is how Salesforce separates the
+  picks of a multi-select. A comma inside a label is left alone.
+- A safe value the form no longer has (a choice deleted after the entry was
+  saved) can't be swapped and is sent as it is, so Salesforce may reject it.
+- With logging turned on for Salesforce Gravity Forms, each swap writes a line
+  naming the form, the form field and the Salesforce field.
 
 ## Resending entries that didn't reach Salesforce
 
