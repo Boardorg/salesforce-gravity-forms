@@ -128,9 +128,21 @@ function sfgf_file_load() {
 	// the Salesforce add-on sends an entry.
 	require_once INCLUDES_PATH . '/gravity-forms/choice-labels.php';
 
+	// Networking Profile router: sends each link to the form for the attendee's
+	// event, found from the key in the link.
+	require_once INCLUDES_PATH . '/routing/settings.php';
+	require_once INCLUDES_PATH . '/routing/key-lookup.php';
+	require_once INCLUDES_PATH . '/routing/form-map.php';
+	require_once INCLUDES_PATH . '/routing/router.php';
+
+	// Gives a duplicated or imported Networking Profile form the Salesforce feed
+	// the Salesforce add-on won't copy, and points its Easy Passthrough feed at itself.
+	require_once INCLUDES_PATH . '/gravity-forms/feed-automation.php';
+
 	// Admin-only screens and tools.
 	if ( is_admin() ) {
 		require_once INCLUDES_PATH . '/admin/credentials-settings.php';
+		require_once INCLUDES_PATH . '/admin/router-settings.php';
 
 		// "Resend to Salesforce" bulk action on the Gravity Forms entry list.
 		require_once INCLUDES_PATH . '/gravity-forms/resend-to-salesforce.php';
